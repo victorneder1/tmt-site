@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Upload Planilhas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: #f5f5f5;
+            color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            padding: 60px 20px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 { font-size: 20px; margin-bottom: 24px; }
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        input[type="password"],
+        input[type="file"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        input[type="file"] {
+            padding: 6px;
+            background: #fafafa;
+        }
+        button {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #93b4f5; cursor: not-allowed; }
+        .status {
+            margin-top: 16px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: none;
+        }
+        .status.success { display: block; background: #dcfce7; color: #166534; }
+        .status.error { display: block; background: #fee2e2; color: #991b1b; }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Upload Planilhas</h1>
+        <form id="upload-form">
+            <label for="key">Upload Key</label>
+            <input type="password" id="key" name="key" placeholder="Enter upload key" required>
+
+            <label for="software">Software (.xlsx)</label>
+            <input type="file" id="software" name="software" accept=".xlsx">
+
+            <label for="itservices">IT Services (.xlsx)</label>
+            <input type="file" id="itservices" name="itservices" accept=".xlsx">
+
+            <button type="submit" id="submit-btn">Upload</button>
+        </form>
+        <div class="status" id="status"></div>
+        <a href="/" class="back-link">Back to Screening</a>
+    </div>
+
+    <script>
+        document.getElementById("upload-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById("submit-btn");
+            const status = document.getElementById("status");
+            btn.disabled = true;
+            btn.textContent = "Uploading...";
+            status.className = "status";
+            status.style.display = "none";
+
+            const form = new FormData();
+            form.append("key", document.getElementById("key").value);
+
+            const sw = document.getElementById("software").files[0];
+            const it = document.getElementById("itservices").files[0];
+            if (sw) form.append("software", sw);
+            if (it) form.append("itservices", it);
+
+            if (!sw && !it) {
+                status.textContent = "Please select at least one file.";
+                status.className = "status error";
+                btn.disabled = false;
+                btn.textContent = "Upload";
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/upload", { method: "POST", body: form });
+                const data = await res.json();
+                if (res.ok) {
+                    status.textContent = "Upload successful: " + data.results.join(", ");
+                    status.className = "status success";
+                } else {
+                    status.textContent = "Error: " + (data.error || "Upload failed");
+                    status.className = "status error";
+                }
+            } catch (err) {
+                status.textContent = "Connection error: " + err.message;
+                status.className = "status error";
+            }
+
+            btn.disabled = false;
+            btn.textContent = "Upload";
+        });
+    </script>
+</body>
+</html>

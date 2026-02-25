@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global AIM</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <h1>Global AIM</h1>
+        </div>
+        <div class="header-right">
+            <span id="last-updated"></span>
+        </div>
+    </header>
+
+    <!-- Main tabs -->
+    <nav class="tabs main-tabs">
+        <button class="tab main-tab active" data-main="screening">Screening</button>
+        <button class="tab main-tab" data-main="pairs">Pair Trades</button>
+    </nav>
+
+    <!-- Sub-tabs for Screening -->
+    <nav class="tabs sub-tabs" id="screening-subtabs">
+        <button class="tab sub-tab active" data-tab="software">Software</button>
+        <button class="tab sub-tab" data-tab="itservices">IT Services</button>
+    </nav>
+
+    <main>
+        <!-- ── SCREENING SECTION ── -->
+        <div id="screening-main" class="main-content active">
+            <section id="software-section" class="tab-content active">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="software-search" placeholder="Search company or ticker...">
+                    </div>
+                    <div class="toggle-container">
+                        <span class="toggle-label" id="gaap-label">GAAP</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="gaap-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label" id="nongaap-label">Non-GAAP</span>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="software-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                        <tfoot></tfoot>
+                    </table>
+                </div>
+            </section>
+
+            <section id="itservices-section" class="tab-content">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="itservices-search" placeholder="Search company or ticker...">
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="itservices-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                        <tfoot></tfoot>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ── PAIR TRADES SECTION ── -->
+        <div id="pairs-main" class="main-content">
+            <div id="pairs-container">
+                <div id="pairs-open-section">
+                    <h2 class="pairs-section-title">Open Ideas</h2>
+                    <div id="pairs-open-list" class="pairs-list"></div>
+                    <div id="pairs-open-empty" class="pairs-empty">No open pairs yet.</div>
+                </div>
+                <div id="pairs-closed-section">
+                    <h2 class="pairs-section-title">Closed Ideas</h2>
+                    <div id="pairs-closed-list" class="pairs-list"></div>
+                    <div id="pairs-closed-empty" class="pairs-empty">No closed pairs yet.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script src="/static/pairs.js"></script>
+</body>
+</html>

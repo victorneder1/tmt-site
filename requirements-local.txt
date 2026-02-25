@@ -1,0 +1,3 @@
+# Additional dependencies for local Windows usage (update_excel.py)
+# Install with: pip install -r requirements.txt -r requirements-local.txt
+pywin32>=306

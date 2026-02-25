@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Pair Trades</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #f9f9f9; color: #191919; font-size: 13px; }
+
+        header { padding: 16px 24px; background: #001F62; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { font-size: 18px; font-weight: 700; }
+        header a { color: rgba(255,255,255,0.6); font-size: 12px; text-decoration: none; }
+        header a:hover { color: #fff; }
+
+        .container { max-width: 800px; margin: 20px auto; padding: 0 20px; }
+
+        /* Add pair form */
+        .form-card {
+            background: #fff; border-radius: 6px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;
+            border-left: 3px solid #195AB4;
+        }
+        .form-card h2 { font-size: 14px; color: #001F62; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-group label { font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-group input { padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; outline: none; }
+        .form-group input:focus { border-color: #195AB4; box-shadow: 0 0 0 2px rgba(25,90,180,0.12); }
+        .form-group .hint { font-size: 10px; color: #999; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .btn-primary { background: #001F62; color: #fff; }
+        .btn-primary:hover { background: #0a1e3d; }
+        .btn-close { background: #D4AF37; color: #001F62; font-size: 11px; padding: 4px 10px; }
+        .btn-close:hover { background: #c9a230; }
+        .btn-reopen { background: #16a34a; color: #fff; font-size: 11px; padding: 4px 10px; }
+        .btn-reopen:hover { background: #138a3e; }
+        .btn-delete { background: #dc2626; color: #fff; font-size: 11px; padding: 4px 10px; }
+        .btn-delete:hover { background: #b91c1c; }
+        .btn-delete.confirm { background: #7f1d1d; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+        .form-msg { font-size: 12px; margin-left: 10px; }
+        .form-msg.success { color: #16a34a; }
+        .form-msg.error { color: #dc2626; }
+
+        /* Pairs list */
+        .section-title { font-size: 13px; font-weight: 700; color: #001F62; text-transform: uppercase; letter-spacing: 0.3px; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #195AB4; }
+        .admin-pair {
+            background: #fff; border-radius: 4px; padding: 10px 14px;
+            margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04); border-left: 3px solid #D4AF37;
+        }
+        .admin-pair.closed { border-left-color: #999; opacity: 0.7; }
+        .admin-pair-info { display: flex; flex-direction: column; gap: 2px; }
+        .admin-pair-tickers { font-weight: 700; font-size: 13px; color: #001F62; }
+        .admin-pair-meta { font-size: 10px; color: #888; }
+        .admin-pair-perf { font-weight: 700; font-size: 14px; margin-right: 14px; }
+        .admin-pair-perf.positive { color: #16a34a; }
+        .admin-pair-perf.negative { color: #dc2626; }
+        .admin-pair-actions { display: flex; gap: 6px; align-items: center; }
+        .btn-move { background: #e8e8e8; color: #333; font-size: 13px; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-weight: 700; line-height: 1; }
+        .btn-move:hover { background: #195AB4; color: #fff; }
+        .btn-move:disabled { opacity: 0.3; cursor: default; background: #e8e8e8; color: #333; }
+        .move-btns { display: flex; flex-direction: column; gap: 2px; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Admin - Pair Trades</h1>
+        <a href="/">Back to site</a>
+    </header>
+
+    <div class="container">
+        <!-- Add Pair Form -->
+        <div class="form-card">
+            <h2>Add New Pair</h2>
+            <form id="add-pair-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Long Ticker(s)</label>
+                        <input type="text" id="f-long-ticker" placeholder="AAPL or AAPL,MSFT" required>
+                        <span class="hint">Comma-separated for baskets</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Entry Price(s) Long</label>
+                        <input type="text" id="f-long-price" placeholder="200 or 200,420" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Short Ticker(s)</label>
+                        <input type="text" id="f-short-ticker" placeholder="MSFT or GOOGL,META" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Entry Price(s) Short</label>
+                        <input type="text" id="f-short-price" placeholder="420 or 170,500" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Inception Date (optional)</label>
+                        <input type="date" id="f-inception">
+                    </div>
+                    <div class="form-group">
+                        <label>Close Date (leave empty for Open Idea)</label>
+                        <input type="date" id="f-close-date">
+                        <span class="hint">If filled, pair goes to Closed Ideas</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Close Price(s) Long (optional)</label>
+                        <input type="text" id="f-close-price-long" placeholder="Auto-fetched if empty">
+                        <span class="hint">Only when closing. Auto-fetched if blank</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Close Price(s) Short (optional)</label>
+                        <input type="text" id="f-close-price-short" placeholder="Auto-fetched if empty">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Add Pair</button>
+                        <span id="form-msg" class="form-msg"></span>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Open Pairs -->
+        <h3 class="section-title">Open Ideas</h3>
+        <div id="admin-open-list"></div>
+
+        <!-- Closed Pairs -->
+        <h3 class="section-title">Closed Ideas</h3>
+        <div id="admin-closed-list"></div>
+    </div>
+
+    <script>
+        const formMsg = document.getElementById("form-msg");
+
+        function showMsg(text, type) {
+            formMsg.textContent = text;
+            formMsg.className = "form-msg " + type;
+            setTimeout(() => { formMsg.textContent = ""; }, 3000);
+        }
+
+        function fmtTickers(t) {
+            return Array.isArray(t) ? t.join(", ") : t;
+        }
+
+        function fmtPerf(p) {
+            const pct = (p * 100).toFixed(2);
+            return `${p >= 0 ? "+" : ""}${pct}%`;
+        }
+
+        // Add pair
+        document.getElementById("add-pair-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            try {
+                const body = {
+                    long_ticker: document.getElementById("f-long-ticker").value.trim(),
+                    short_ticker: document.getElementById("f-short-ticker").value.trim(),
+                    entry_price_long: document.getElementById("f-long-price").value.trim(),
+                    entry_price_short: document.getElementById("f-short-price").value.trim(),
+                    inception_date: document.getElementById("f-inception").value || null,
+                    closed_date: document.getElementById("f-close-date").value || null,
+                    close_price_long: document.getElementById("f-close-price-long").value.trim() || null,
+                    close_price_short: document.getElementById("f-close-price-short").value.trim() || null,
+                };
+                const res = await fetch("/api/pairs", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed");
+                showMsg("Pair added!", "success");
+                document.getElementById("add-pair-form").reset();
+                loadAdminPairs();
+            } catch (err) {
+                showMsg(err.message, "error");
+            }
+        });
+
+        // Load pairs
+        async function loadAdminPairs() {
+            try {
+                const res = await fetch("/api/pairs");
+                const pairs = await res.json();
+                renderAdminPairs(pairs);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Keep references for reordering
+        let currentPairs = [];
+
+        async function saveOrder() {
+            const ids = currentPairs.map(p => p.id);
+            await fetch("/api/pairs/reorder", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ordered_ids: ids }),
+            });
+        }
+
+        async function movePair(pairId, direction) {
+            const idx = currentPairs.findIndex(p => p.id === pairId);
+            if (idx < 0) return;
+            const targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= currentPairs.length) return;
+            // Swap
+            [currentPairs[idx], currentPairs[targetIdx]] = [currentPairs[targetIdx], currentPairs[idx]];
+            await saveOrder();
+            renderAdminPairs(currentPairs);
+        }
+
+        function renderAdminPairs(pairs) {
+            currentPairs = pairs;
+            const openList = document.getElementById("admin-open-list");
+            const closedList = document.getElementById("admin-closed-list");
+            openList.innerHTML = "";
+            closedList.innerHTML = "";
+
+            // Split into open/closed preserving server order
+            const openPairs = pairs.filter(p => p.status === "open");
+            const closedPairs = pairs.filter(p => p.status === "closed");
+
+            function renderList(list, container) {
+                list.forEach((p, i) => {
+                    const div = document.createElement("div");
+                    div.className = "admin-pair" + (p.status === "closed" ? " closed" : "");
+
+                    const perfClass = p.performance >= 0 ? "positive" : "negative";
+                    const meta = p.inception_date ? `Inception: ${p.inception_date.split("T")[0]}` : `Created: ${p.entry_date.split("T")[0]}`;
+                    const closeDateVal = p.closed_date ? p.closed_date.split("T")[0] : "";
+
+                    div.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div class="move-btns">
+                                <button class="btn-move btn-up" title="Move up">&uarr;</button>
+                                <button class="btn-move btn-down" title="Move down">&darr;</button>
+                            </div>
+                            <div class="admin-pair-info">
+                                <span class="admin-pair-tickers">Long: ${fmtTickers(p.long_ticker)} / Short: ${fmtTickers(p.short_ticker)}</span>
+                                <span class="admin-pair-meta">${meta}</span>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span class="admin-pair-perf ${perfClass}">${fmtPerf(p.performance)}</span>
+                            <div class="admin-pair-actions">
+                                <label style="font-size:10px;color:#555;font-weight:600;">Close Date:</label>
+                                <input type="date" class="close-date-input" value="${closeDateVal}" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:11px;width:130px;">
+                            </div>
+                        </div>`;
+
+                    // Move buttons — operate on global order
+                    const btnUp = div.querySelector(".btn-up");
+                    const btnDown = div.querySelector(".btn-down");
+                    const globalIdx = currentPairs.findIndex(x => x.id === p.id);
+                    btnUp.disabled = globalIdx === 0;
+                    btnDown.disabled = globalIdx === currentPairs.length - 1;
+                    btnUp.onclick = () => movePair(p.id, -1);
+                    btnDown.onclick = () => movePair(p.id, 1);
+
+                    // Close date change handler
+                    const closeDateInput = div.querySelector(".close-date-input");
+                    closeDateInput.addEventListener("change", async () => {
+                        const newDate = closeDateInput.value || null;
+                        await fetch(`/api/pairs/${p.id}/update-close`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ closed_date: newDate }),
+                        });
+                        loadAdminPairs();
+                    });
+
+                    // Delete button
+                    const actions = div.querySelector(".admin-pair-actions");
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "btn btn-delete";
+                    delBtn.textContent = "Delete";
+                    delBtn.style.marginLeft = "6px";
+                    let confirmState = false;
+                    delBtn.onclick = async () => {
+                        if (!confirmState) {
+                            confirmState = true;
+                            delBtn.textContent = "Confirm?";
+                            delBtn.classList.add("confirm");
+                            setTimeout(() => { confirmState = false; delBtn.textContent = "Delete"; delBtn.classList.remove("confirm"); }, 3000);
+                        } else {
+                            await fetch(`/api/pairs/${p.id}`, { method: "DELETE" });
+                            loadAdminPairs();
+                        }
+                    };
+                    actions.appendChild(delBtn);
+
+                    container.appendChild(div);
+                });
+            }
+
+            renderList(openPairs, openList);
+            renderList(closedPairs, closedList);
+
+            if (!openList.children.length) openList.innerHTML = '<div style="color:#999;font-size:12px;padding:8px 0;">No open pairs.</div>';
+            if (!closedList.children.length) closedList.innerHTML = '<div style="color:#999;font-size:12px;padding:8px 0;">No closed pairs.</div>';
+        }
+
+        loadAdminPairs();
+    </script>
+</body>
+</html>
