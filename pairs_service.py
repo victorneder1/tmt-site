@@ -9,7 +9,8 @@ from datetime import datetime
 import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "data", "pairs.db")
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
+DB_PATH = os.path.join(DATA_DIR, "pairs.db")
 
 # ---------------------------------------------------------------------------
 # Price cache (in-memory, 30s TTL)

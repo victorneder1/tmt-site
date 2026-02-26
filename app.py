@@ -9,8 +9,10 @@ import pairs_service
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SOFTWARE_FILE = os.path.join(BASE_DIR, "Screening_VisibleAlpha_Software_site.xlsx")
-ITSERVICES_FILE = os.path.join(BASE_DIR, "Screening_VisibleAlpha_ITServices_site.xlsx")
+DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
+os.makedirs(DATA_DIR, exist_ok=True)
+SOFTWARE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_Software_site.xlsx")
+ITSERVICES_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_ITServices_site.xlsx")
 
 # Upload key for authentication — change this to a strong secret before deploying
 UPLOAD_KEY = os.environ.get("UPLOAD_KEY", "change-me-before-deploy")
@@ -145,7 +147,7 @@ def api_upload():
     for field, filename in ALLOWED_FILES.items():
         file = request.files.get(field)
         if file and file.filename:
-            dest = os.path.join(BASE_DIR, filename)
+            dest = os.path.join(DATA_DIR, filename)
             file.save(dest)
             results.append(f"{field}: uploaded")
 
