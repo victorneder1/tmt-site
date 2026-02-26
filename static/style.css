@@ -250,9 +250,14 @@ thead th.sort-desc::after {
     color: #7ab3ff;
 }
 
-/* Company column: left-aligned */
+/* Company column: left-aligned + sticky horizontal */
 thead th.col-company {
     text-align: left;
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    background: #001F62;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
 }
 
 /* === Group divider borders === */
@@ -282,6 +287,11 @@ tbody td.col-company {
     align-items: center;
     overflow: hidden;
     text-overflow: ellipsis;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: inherit;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.06);
 }
 
 tbody tr:nth-child(even) {
@@ -344,6 +354,11 @@ tfoot td {
 
 tfoot td.col-company {
     text-align: left;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #e6eef8;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.06);
 }
 
 /* ── Main content sections ── */
