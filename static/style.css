@@ -179,7 +179,8 @@ main {
 
 table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 12px;
     table-layout: fixed;
 }
@@ -220,7 +221,7 @@ thead tr.group-header th.single-col:hover {
 thead tr.sub-header th {
     position: sticky;
     top: 35px;
-    z-index: 1;
+    z-index: 2;
     background: #0a2a6e;
     color: rgba(255, 255, 255, 0.75);
     font-weight: 600;
@@ -282,19 +283,20 @@ tbody td {
 tbody td.col-company {
     text-align: left;
     font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     overflow: hidden;
     text-overflow: ellipsis;
     position: sticky;
     left: 0;
     z-index: 1;
-    background: inherit;
+    background: #ffffff;
     box-shadow: 2px 0 4px rgba(0,0,0,0.06);
 }
 
 tbody tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+tbody tr:nth-child(even) td.col-company {
     background: #f9f9f9;
 }
 
@@ -306,8 +308,16 @@ tbody tr:hover {
     background: #e6eef8;
 }
 
+tbody tr:hover td.col-company {
+    background: #e6eef8;
+}
+
 /* BTG estimate rows */
 .btg-row td {
+    background: #f0f5fc;
+}
+
+.btg-row td.col-company {
     background: #f0f5fc;
 }
 
@@ -315,7 +325,15 @@ tbody tr:hover {
     background: #e8eff9;
 }
 
+.btg-row:nth-child(even) td.col-company {
+    background: #e8eff9;
+}
+
 .btg-row:hover td {
+    background: #dce6f5;
+}
+
+.btg-row:hover td.col-company {
     background: #dce6f5;
 }
 
