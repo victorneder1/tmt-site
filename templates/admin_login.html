@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f5f5f5;
+            color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .login-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 40px 32px;
+            max-width: 380px;
+            width: 100%;
+            text-align: center;
+        }
+        .login-card h1 {
+            font-size: 20px;
+            color: #001F62;
+            margin-bottom: 8px;
+        }
+        .login-card p {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 24px;
+        }
+        input[type="password"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            outline: none;
+        }
+        input[type="password"]:focus {
+            border-color: #195AB4;
+            box-shadow: 0 0 0 2px rgba(25,90,180,0.15);
+        }
+        button {
+            background: #001F62;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover { background: #0a1e3d; }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            color: #195AB4;
+            text-decoration: none;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>Global AIM</h1>
+        <p>Admin access required</p>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="POST">
+            <input type="password" name="password" placeholder="Enter admin password" required autofocus>
+            <button type="submit">Login</button>
+        </form>
+        <a href="/" class="back-link">Back to site</a>
+    </div>
+</body>
+</html>

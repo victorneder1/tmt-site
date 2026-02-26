@@ -79,9 +79,6 @@
     <div class="card">
         <h1>Upload Planilhas</h1>
         <form id="upload-form">
-            <label for="key">Upload Key</label>
-            <input type="password" id="key" name="key" placeholder="Enter upload key" required>
-
             <label for="software">Software (.xlsx)</label>
             <input type="file" id="software" name="software" accept=".xlsx">
 
@@ -91,7 +88,9 @@
             <button type="submit" id="submit-btn">Upload</button>
         </form>
         <div class="status" id="status"></div>
-        <a href="/" class="back-link">Back to Screening</a>
+        <a href="/admin/pairs" class="back-link">Manage Pair Trades</a>
+        <a href="/admin/logout" class="back-link">Logout</a>
+        <a href="/" class="back-link">Back to site</a>
     </div>
 
     <script>
@@ -105,7 +104,6 @@
             status.style.display = "none";
 
             const form = new FormData();
-            form.append("key", document.getElementById("key").value);
 
             const sw = document.getElementById("software").files[0];
             const it = document.getElementById("itservices").files[0];

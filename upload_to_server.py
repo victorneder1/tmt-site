@@ -13,8 +13,25 @@ import os
 import sys
 import requests
 
+SCRIPT_DIR_ENV = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_env():
+    """Load .env file if it exists (simple key=value parser)."""
+    env_path = os.path.join(SCRIPT_DIR_ENV, ".env")
+    if os.path.exists(env_path):
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ.setdefault(key.strip(), val.strip())
+
+
+_load_env()
+
 # --- CONFIGURAÇÃO ---
-# Edite aqui ou defina como variáveis de ambiente
+# Lê de .env ou variáveis de ambiente
 SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:8080")
 UPLOAD_KEY = os.environ.get("UPLOAD_KEY", "change-me-before-deploy")
 

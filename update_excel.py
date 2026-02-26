@@ -65,6 +65,23 @@ def kill_other_instances():
             pass
 
 
+def _com_retry(func, *args, retries=5, delay=2):
+    """Retry a COM call if Excel is busy (RPC_E_CALL_REJECTED)."""
+    for attempt in range(retries):
+        try:
+            return func(*args)
+        except Exception as e:
+            if "-2147418111" in str(e) and attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                raise
+
+
+def _get_cell(ws, row, col):
+    """Get a cell with retry for busy Excel."""
+    return _com_retry(ws.Cells, row, col)
+
+
 def cell_is_bad(cell):
     try:
         text = str(cell.Text or "")
@@ -210,10 +227,10 @@ def process_file(xl, file_info, attempt=1):
 
     # Log initial state
     for row, col in check_cells:
-        log.info(f"  Cell({row},{col}) = {get_cell_status(ws.Cells(row, col))}")
+        log.info(f"  Cell({row},{col}) = {get_cell_status(_get_cell(ws, row, col))}")
 
     # Check if we have #NAME errors
-    has_name = any("#NAME" in get_cell_status(ws.Cells(r, c)) for r, c in check_cells)
+    has_name = any("#NAME" in get_cell_status(_get_cell(ws, r, c)) for r, c in check_cells)
 
     if has_name:
         log.info("  #NAME errors detected - triggering add-in refresh...")
@@ -233,7 +250,7 @@ def process_file(xl, file_info, attempt=1):
         time.sleep(5)
 
         # Check again
-        has_name = any("#NAME" in get_cell_status(ws.Cells(r, c)) for r, c in check_cells)
+        has_name = any("#NAME" in get_cell_status(_get_cell(ws, r, c)) for r, c in check_cells)
         if has_name:
             log.info("  Still #NAME after CalculateFullRebuild. Trying SendKeys...")
             trigger_va_refresh_sendkeys(xl)
@@ -248,7 +265,7 @@ def process_file(xl, file_info, attempt=1):
 
         # Log status after attempts
         for row, col in check_cells:
-            log.info(f"  Cell({row},{col}) after fix attempts = {get_cell_status(ws.Cells(row, col))}")
+            log.info(f"  Cell({row},{col}) after fix attempts = {get_cell_status(_get_cell(ws, row, col))}")
 
     # Standard refresh
     log.info("  Refreshing data...")
@@ -271,17 +288,17 @@ def process_file(xl, file_info, attempt=1):
 
         all_good = True
         for row, col in check_cells:
-            if cell_is_bad(ws.Cells(row, col)):
+            if cell_is_bad(_get_cell(ws, row, col)):
                 all_good = False
                 if elapsed % 15 == 0:
-                    log.info(f"  [{elapsed}s] Cell({row},{col}): {get_cell_status(ws.Cells(row, col))}")
+                    log.info(f"  [{elapsed}s] Cell({row},{col}): {get_cell_status(_get_cell(ws, row, col))}")
                 break
 
         if all_good:
             log.info(f"  Check cells OK after {elapsed}s. Scanning sheet...")
             if not sheet_has_bad_cells(ws):
                 for row, col in check_cells:
-                    log.info(f"  Cell({row},{col}) final: {get_cell_status(ws.Cells(row, col))}")
+                    log.info(f"  Cell({row},{col}) final: {get_cell_status(_get_cell(ws, row, col))}")
                 log.info("  Saving...")
                 wb.Save()
                 wb.Close(False)
@@ -301,7 +318,7 @@ def process_file(xl, file_info, attempt=1):
     # Timeout - if #NAME persists and this is first attempt, retry with fresh Excel
     log.error(f"  TIMEOUT after {MAX_WAIT}s.")
     for row, col in check_cells:
-        log.error(f"  Cell({row},{col}) = {get_cell_status(ws.Cells(row, col))}")
+        log.error(f"  Cell({row},{col}) = {get_cell_status(_get_cell(ws, row, col))}")
     wb.Close(False)
     return False
 
@@ -318,7 +335,7 @@ def main():
     pythoncom.CoInitialize()
 
     try:
-        xl = win32com.client.DispatchEx("Excel.Application")
+        xl = win32com.client.gencache.EnsureDispatch("Excel.Application")
         time.sleep(3)
     except Exception as e:
         log.error(f"Could not start Excel: {e}")

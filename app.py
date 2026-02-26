@@ -1,12 +1,14 @@
 import os
+from functools import wraps
 from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from werkzeug.utils import secure_filename
 
 from data_parser import parse_software_comps, parse_itservices_comps, get_last_updated
 import pairs_service
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
@@ -71,22 +73,62 @@ def api_pair_history(pair_id):
         return jsonify({"error": str(e)}), 500
 
 
+# ── Admin auth ─────────────────────────────────────────────────────────────
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("admin"):
+            return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    error = None
+    if request.method == "POST":
+        if request.form.get("password") == UPLOAD_KEY:
+            session["admin"] = True
+            return redirect(request.args.get("next") or url_for("admin"))
+        error = "Invalid password"
+    return render_template("admin_login.html", error=error)
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    return redirect(url_for("index"))
+
+
 # ── Admin pages ─────────────────────────────────────────────────────────────
 
 @app.route("/admin")
+@admin_required
 def admin():
     return render_template("admin.html")
 
 
 @app.route("/admin/pairs")
+@admin_required
 def admin_pairs():
     return render_template("admin_pairs.html")
 
 
-# ── Admin APIs (pairs management) ──────────────────────────────────────────
+# ── Admin APIs (pairs management — require login or upload key) ───────────
+
+def _is_admin():
+    """Check if request is from logged-in admin or has valid upload key."""
+    if session.get("admin"):
+        return True
+    key = request.headers.get("X-Upload-Key") or request.form.get("key")
+    return key == UPLOAD_KEY
+
 
 @app.route("/api/pairs", methods=["POST"])
 def api_create_pair():
+    if not _is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
     try:
         data = request.get_json()
         pair = pairs_service.create_pair(data)
@@ -99,6 +141,8 @@ def api_create_pair():
 
 @app.route("/api/pairs/<int:pair_id>", methods=["DELETE"])
 def api_delete_pair(pair_id):
+    if not _is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
     try:
         deleted = pairs_service.delete_pair(pair_id)
         if not deleted:
@@ -110,6 +154,8 @@ def api_delete_pair(pair_id):
 
 @app.route("/api/pairs/reorder", methods=["POST"])
 def api_reorder_pairs():
+    if not _is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
     try:
         data = request.get_json()
         ordered_ids = data.get("ordered_ids", [])
@@ -121,6 +167,8 @@ def api_reorder_pairs():
 
 @app.route("/api/pairs/<int:pair_id>/update-close", methods=["POST"])
 def api_update_close(pair_id):
+    if not _is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
     try:
         data = request.get_json()
         closed_date = data.get("closed_date") or None
@@ -138,8 +186,7 @@ def api_update_close(pair_id):
 
 @app.route("/api/upload", methods=["POST"])
 def api_upload():
-    key = request.form.get("key") or request.headers.get("X-Upload-Key")
-    if key != UPLOAD_KEY:
+    if not _is_admin():
         return jsonify({"error": "Invalid upload key"}), 403
 
     results = []
