@@ -170,6 +170,8 @@ main {
 /* Table */
 .table-wrapper {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 180px);
     border: 1px solid #ddd;
     border-radius: 4px;
     background: #ffffff;

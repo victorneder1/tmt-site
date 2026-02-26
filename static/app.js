@@ -53,7 +53,7 @@ function cleanTicker(ticker) {
 }
 
 // BTG estimate companies
-const BTG_COMPANIES = ["Braze", "Zeta Global", "Globant", "CI&T"];
+const BTG_COMPANIES = ["Braze", "Zeta Global", "Globant", "CI&T", "VTEX"];
 
 // Formatting
 function formatValue(val, col) {
