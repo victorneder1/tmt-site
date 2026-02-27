@@ -65,6 +65,31 @@ def kill_other_instances():
             pass
 
 
+def kill_excel():
+    """Kill all running Excel instances to avoid RPC_E_CALL_REJECTED."""
+    try:
+        result = subprocess.run(
+            ["taskkill", "/f", "/im", "EXCEL.EXE"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            log.info("Killed existing Excel instances.")
+            time.sleep(3)
+    except Exception:
+        pass
+
+
+def wait_for_excel(xl, timeout=30):
+    """Wait until Excel is ready to accept COM calls."""
+    for i in range(timeout):
+        try:
+            xl._oleobj_.GetIDsOfNames('Visible')
+            return True
+        except Exception:
+            time.sleep(1)
+    return False
+
+
 def _com_retry(func, *args, retries=5, delay=2):
     """Retry a COM call if Excel is busy (RPC_E_CALL_REJECTED)."""
     for attempt in range(retries):
@@ -219,7 +244,8 @@ def process_file(xl, file_info, attempt=1):
         return False
 
     try:
-        ws = wb.Sheets(sheet_name)
+        import win32com.client
+        ws = win32com.client.gencache.EnsureDispatch(wb.Sheets(sheet_name))
     except Exception as e:
         log.error(f"  Sheet '{sheet_name}' not found: {e}")
         wb.Close(False)
@@ -328,6 +354,7 @@ def main():
     import pythoncom
 
     kill_other_instances()
+    kill_excel()
 
     log.info("=" * 50)
     log.info("Starting Excel refresh")
@@ -335,8 +362,8 @@ def main():
     pythoncom.CoInitialize()
 
     try:
+        win32com.client.gencache.Rebuild()
         xl = win32com.client.gencache.EnsureDispatch("Excel.Application")
-        time.sleep(3)
     except Exception as e:
         log.error(f"Could not start Excel: {e}")
         sys.exit(1)

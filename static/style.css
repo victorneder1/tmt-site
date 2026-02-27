@@ -261,6 +261,17 @@ thead th.col-company {
     box-shadow: 2px 0 4px rgba(0,0,0,0.15);
 }
 
+/* Company header: sticky in BOTH directions (top + left) so it stays
+   fixed when scrolling horizontally on mobile */
+thead tr.group-header th.col-company {
+    position: sticky;
+    left: 0;
+    top: 0;
+    z-index: 11;
+    background: #001F62;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.15);
+}
+
 /* === Group divider borders === */
 .group-border-left {
     border-left: 2px solid #1a3878;
