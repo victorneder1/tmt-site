@@ -256,9 +256,9 @@ thead th.col-company {
     text-align: left;
     position: sticky;
     left: 0;
-    z-index: 4;
+    z-index: 10;
     background: #001F62;
-    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+    box-shadow: 2px 0 4px rgba(0,0,0,0.15);
 }
 
 /* === Group divider borders === */
