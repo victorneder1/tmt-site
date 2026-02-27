@@ -261,15 +261,9 @@ function ensureDefaultSort(sortState, groups) {
         const allKeys = flatCols(groups).map(c => c.key);
         if (allKeys.includes(sortState.key)) return;
     }
-    for (const g of groups) {
-        for (const c of g.cols) {
-            if (c.type !== "text") {
-                sortState.key = c.key;
-                sortState.dir = "desc";
-                return;
-            }
-        }
-    }
+    // Default: sort alphabetically by company name
+    sortState.key = "name";
+    sortState.dir = "asc";
 }
 
 // Fetch & render
