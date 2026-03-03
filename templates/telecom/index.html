@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTG TMT — Telecom</title>
+    <link rel="stylesheet" href="/static/telecom/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GCQKDDFYX7"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-GCQKDDFYX7');
+    </script>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <img src="/static/btg-logo.png" alt="BTG Pactual" class="header-logo">
+            <nav class="header-nav">
+                <a href="/global" class="header-nav-link">Global AIM</a>
+                <a href="/telecom" class="header-nav-link active">Telecom</a>
+            </nav>
+        </div>
+        <div class="header-right">
+            <span class="header-subtitle">Source: Anatel</span>
+        </div>
+    </header>
+
+    <!-- Sub tabs -->
+    <nav class="tabs main-tabs">
+        <button class="tab main-tab active" data-main="broadband">Broadband</button>
+        <button class="tab main-tab" data-main="mobile">Mobile</button>
+    </nav>
+
+    <main>
+        <!-- ── BROADBAND SECTION ── -->
+        <div id="broadband-main" class="main-content active">
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>State</label>
+                    <select id="bb-uf-select">
+                        <option value="">All Brazil</option>
+                    </select>
+                </div>
+                <label class="toggle-switch-label">
+                    <span class="toggle-switch">
+                        <input type="checkbox" id="bb-ftth-toggle">
+                        <span class="toggle-slider"></span>
+                    </span>
+                    FTTH Only
+                </label>
+            </div>
+
+            <!-- Summary Table -->
+            <div class="card card-table">
+                <h3 class="card-title">Overview — Last 12 Months</h3>
+                <div class="table-wrapper">
+                    <table id="bb-summary-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Chart date filters -->
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>From</label>
+                    <select id="bb-from-select"></select>
+                </div>
+                <div class="filter-group">
+                    <label>To</label>
+                    <select id="bb-to-select"></select>
+                </div>
+            </div>
+
+            <!-- Big Players -->
+            <div class="section-header">Big Players — Claro, Vivo, Niu</div>
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">Total Accesses</h3>
+                    <div class="chart-container"><canvas id="bb-big-accesses"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Net Adds (Monthly)</h3>
+                    <div class="chart-container"><canvas id="bb-big-netadds"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Market Share</h3>
+                    <div class="chart-container"><canvas id="bb-big-share"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Smaller Players -->
+            <div class="section-header">Smaller Players — Brisanet, Giga+, Vero, Tecpar, Desktop, TIM, Unifique</div>
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">Total Accesses</h3>
+                    <div class="chart-container"><canvas id="bb-small-accesses"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Net Adds (Monthly)</h3>
+                    <div class="chart-container"><canvas id="bb-small-netadds"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Market Share</h3>
+                    <div class="chart-container"><canvas id="bb-small-share"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── MOBILE SECTION ── -->
+        <div id="mobile-main" class="main-content">
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>State</label>
+                    <select id="mob-uf-select">
+                        <option value="">All Brazil</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Summary Table -->
+            <div class="card card-table">
+                <h3 class="card-title">Overview — Last 12 Months</h3>
+                <div class="table-wrapper">
+                    <table id="mob-summary-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Chart date filters -->
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>From</label>
+                    <select id="mob-from-select"></select>
+                </div>
+                <div class="filter-group">
+                    <label>To</label>
+                    <select id="mob-to-select"></select>
+                </div>
+            </div>
+
+            <!-- Pure Postpaid -->
+            <div class="section-header">Pure Postpaid — Vivo, Claro, TIM</div>
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">Total Accesses</h3>
+                    <div class="chart-container"><canvas id="mob-post-accesses"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Net Adds (Monthly)</h3>
+                    <div class="chart-container"><canvas id="mob-post-netadds"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Market Share</h3>
+                    <div class="chart-container"><canvas id="mob-post-share"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Prepaid -->
+            <div class="section-header">Prepaid — Vivo, Claro, TIM</div>
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">Total Accesses</h3>
+                    <div class="chart-container"><canvas id="mob-pre-accesses"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Net Adds (Monthly)</h3>
+                    <div class="chart-container"><canvas id="mob-pre-netadds"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Market Share</h3>
+                    <div class="chart-container"><canvas id="mob-pre-share"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/telecom/broadband.js"></script>
+    <script src="/static/telecom/mobile.js"></script>
+    <script>
+        // Main tab switching
+        document.querySelectorAll(".main-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                document.querySelectorAll(".main-tab").forEach(t => t.classList.remove("active"));
+                document.querySelectorAll(".main-content").forEach(s => s.classList.remove("active"));
+                tab.classList.add("active");
+                const target = tab.dataset.main;
+                document.getElementById(target + "-main").classList.add("active");
+                if (target === "mobile" && !window._mobileLoaded) {
+                    initMobile();
+                    window._mobileLoaded = true;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

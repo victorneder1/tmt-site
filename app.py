@@ -6,8 +6,10 @@ from werkzeug.utils import secure_filename
 
 from data_parser import parse_software_comps, parse_itservices_comps, get_last_updated
 import pairs_service
+from telecom import telecom_bp
 
 app = Flask(__name__)
+app.register_blueprint(telecom_bp)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +28,7 @@ ALLOWED_FILES = {
 
 
 @app.route("/")
+@app.route("/global")
 def index():
     return render_template("index.html")
 
