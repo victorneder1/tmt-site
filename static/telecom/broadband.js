@@ -86,10 +86,12 @@ async function loadBroadband() {
     const ftthOn = document.getElementById("bb-ftth-toggle").checked;
     const tech = ftthOn ? "FTTH" : "";
 
-    // Chart data uses filter dates
+    // Chart data: fetch one month before 'from' so net adds work for the first month
+    const fromIdx = bbAllMonths.indexOf(from);
+    const extendedFrom = fromIdx > 0 ? bbAllMonths[fromIdx - 1] : from;
     const params = new URLSearchParams();
     if (uf) params.set("uf", uf);
-    if (from) params.set("from", from);
+    if (extendedFrom) params.set("from", extendedFrom);
     if (to) params.set("to", to);
     if (tech) params.set("tech", tech);
 
@@ -102,7 +104,7 @@ async function loadBroadband() {
         fetch("/telecom/api/broadband?" + params).then(r => r.json()),
         fetch("/telecom/api/broadband?" + tableParams).then(r => r.json()),
     ]);
-    renderBBDashboard(data, tableData);
+    renderBBDashboard(data, tableData, from);
 }
 
 function buildOpMonthMap(data, operators) {
@@ -117,19 +119,21 @@ function buildOpMonthMap(data, operators) {
     return { months: Array.from(monthsSet).sort(), opMonthMap };
 }
 
-function renderBBDashboard(data, tableData) {
+function renderBBDashboard(data, tableData, fromMonth) {
     // Table: always last 12 months from unfiltered data
     const tableAllMap = buildOpMonthMap(tableData, BB_ALL_OPERATORS);
     renderBBMultiMonthTable(tableAllMap.months, tableAllMap.opMonthMap);
 
-    // Charts use filtered data
+    // Charts use filtered data (opMonthMap includes extra prev month for net adds)
     const allMap = buildOpMonthMap(data, BB_ALL_OPERATORS);
 
     const bigMap = buildOpMonthMap(data, BB_BIG);
-    renderChartGroup("bb-big", bigMap.months, BB_BIG, bigMap.opMonthMap, allMap);
+    const bigMonths = bigMap.months.filter(m => m >= fromMonth);
+    renderChartGroup("bb-big", bigMonths, BB_BIG, bigMap.opMonthMap, allMap);
 
     const smallMap = buildOpMonthMap(data, BB_SMALL);
-    renderChartGroup("bb-small", smallMap.months, BB_SMALL, smallMap.opMonthMap, allMap);
+    const smallMonths = smallMap.months.filter(m => m >= fromMonth);
+    renderChartGroup("bb-small", smallMonths, BB_SMALL, smallMap.opMonthMap, allMap);
 }
 
 function fmtMonth(m) {
@@ -275,8 +279,9 @@ function renderChartGroup(prefix, months, operators, opMonthMap, allMap) {
             datasets: ops.map(op => ({
                 label: op,
                 data: months.map((m, i) => {
-                    if (i === 0) return 0;
-                    return ((opMonthMap[op][m]) || 0) - ((opMonthMap[op][months[i - 1]]) || 0);
+                    const prevMonth = i > 0 ? months[i - 1] : bbAllMonths[bbAllMonths.indexOf(m) - 1];
+                    if (!prevMonth) return 0;
+                    return ((opMonthMap[op][m]) || 0) - ((opMonthMap[op][prevMonth]) || 0);
                 }),
                 backgroundColor: OPERATOR_COLORS[op] + "CC",
                 borderColor: OPERATOR_COLORS[op], borderWidth: 1, borderRadius: 2,

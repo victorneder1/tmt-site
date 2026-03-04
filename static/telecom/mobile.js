@@ -15,12 +15,15 @@ const MOB_COLORS = {
 const MOB_TABLE_MAX_MONTHS = 12;
 
 let mobCharts = {};
+let mobAllMonths = [];
 
 async function initMobile() {
     const [months, states] = await Promise.all([
         fetch("/telecom/api/mobile/months").then(r => r.json()),
         fetch("/telecom/api/broadband/states").then(r => r.json()),
     ]);
+
+    mobAllMonths = months;
 
     const ufSel = document.getElementById("mob-uf-select");
     while (ufSel.options.length > 1) ufSel.remove(1);
@@ -56,9 +59,12 @@ async function loadMobile() {
     const from = document.getElementById("mob-from-select").value;
     const to = document.getElementById("mob-to-select").value;
 
+    // Fetch one month before 'from' so net adds work for the first month
+    const fromIdx = mobAllMonths.indexOf(from);
+    const extendedFrom = fromIdx > 0 ? mobAllMonths[fromIdx - 1] : from;
     const params = new URLSearchParams();
     if (uf) params.set("uf", uf);
-    if (from) params.set("from", from);
+    if (extendedFrom) params.set("from", extendedFrom);
     if (to) params.set("to", to);
 
     const tableParams = new URLSearchParams();
@@ -70,7 +76,7 @@ async function loadMobile() {
     ]);
     const filtered = data.filter(d => d.segment === "Postpaid" || d.segment === "Prepaid");
     const tableFiltered = tableData.filter(d => d.segment === "Postpaid" || d.segment === "Prepaid");
-    renderMobDashboard(filtered, tableFiltered);
+    renderMobDashboard(filtered, tableFiltered, from);
 }
 
 function mobBuildMap(data, operators, segment) {
@@ -92,7 +98,7 @@ function fmtMonth(m) {
     return names[parseInt(mo) - 1] + "-" + y.slice(2);
 }
 
-function renderMobDashboard(data, tableData) {
+function renderMobDashboard(data, tableData, fromMonth) {
     const allOps = [...MOB_TABLE_OPS, "Others"];
 
     const tablePostMap = mobBuildMap(tableData, allOps, "Postpaid");
@@ -103,10 +109,12 @@ function renderMobDashboard(data, tableData) {
     const allPreMap = mobBuildMap(data, allOps, "Prepaid");
 
     const postChartMap = mobBuildMap(data, MOB_CHART_OPS, "Postpaid");
-    renderMobChartGroup("mob-post", postChartMap.months, MOB_CHART_OPS, postChartMap.opMonthMap, allPostMap);
+    const postMonths = postChartMap.months.filter(m => m >= fromMonth);
+    renderMobChartGroup("mob-post", postMonths, MOB_CHART_OPS, postChartMap.opMonthMap, allPostMap);
 
     const preChartMap = mobBuildMap(data, MOB_CHART_OPS, "Prepaid");
-    renderMobChartGroup("mob-pre", preChartMap.months, MOB_CHART_OPS, preChartMap.opMonthMap, allPreMap);
+    const preMonths = preChartMap.months.filter(m => m >= fromMonth);
+    renderMobChartGroup("mob-pre", preMonths, MOB_CHART_OPS, preChartMap.opMonthMap, allPreMap);
 }
 
 function renderMobMultiMonthTable(postMap, preMap) {
@@ -268,8 +276,9 @@ function renderMobChartGroup(prefix, months, operators, opMonthMap, allMap) {
             datasets: ops.map(op => ({
                 label: op,
                 data: months.map((m, i) => {
-                    if (i === 0) return 0;
-                    return ((opMonthMap[op][m]) || 0) - ((opMonthMap[op][months[i - 1]]) || 0);
+                    const prevMonth = i > 0 ? months[i - 1] : mobAllMonths[mobAllMonths.indexOf(m) - 1];
+                    if (!prevMonth) return 0;
+                    return ((opMonthMap[op][m]) || 0) - ((opMonthMap[op][prevMonth]) || 0);
                 }),
                 backgroundColor: MOB_COLORS[op] + "CC",
                 borderColor: MOB_COLORS[op], borderWidth: 1, borderRadius: 2,
