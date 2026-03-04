@@ -8,3 +8,4 @@ update_log.txt
 venv/
 .venv/
 *.db
+Database/

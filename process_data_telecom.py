@@ -21,7 +21,7 @@ MOB_DIR = os.path.join(os.path.dirname(__file__), "Database", "Mobile")
 BB_OPS_OLD = {
     "TELEFONICA": "Vivo",
     "TELECOM AMERICAS": "Claro",
-    "OI": "Niu",
+    "OI": "Nio",
     "BRISANET": "Brisanet",
     "GIGA MAIS FIBRA": "Giga+",
     "EB FIBRA": "Giga+",
@@ -45,7 +45,7 @@ MOB_OPS_OLD = {
 BB_OPS_NEW = {
     "VIVO": "Vivo",
     "CLARO": "Claro",
-    "OI": "Niu",
+    "OI": "Nio",
     "BRISANET": "Brisanet",
     "GIGA MAIS FIBRA": "Giga+",
     "VERO": "Vero",
@@ -53,6 +53,7 @@ BB_OPS_NEW = {
     "DESKTOP": "Desktop",
     "TIM": "TIM",
     "UNIFIQUE": "Unifique",
+    "STARLINK": "Starlink",
 }
 
 MOB_OPS_NEW = {
@@ -67,8 +68,9 @@ MOB_OPS_NEW = {
 # Empresa-level fallback: when Grupo Econômico is "OUTROS", check
 # the Empresa column to recover operators that Anatel reclassified.
 BB_EMPRESA_MAP = {
-    "OI": "Niu",
+    "OI": "Nio",
     "BRASIL TECPAR": "Tecpar",
+    "STARLINK": "Starlink",
 }
 
 
@@ -186,6 +188,24 @@ def process_broadband():
     result = result[result["month"] >= "2015-01"]
     result = result.groupby(["operator", "UF", "month", "tech"], as_index=False)["accesses"].sum()
     result = result.sort_values(["month", "operator", "UF", "tech"])
+
+    # ── Data corrections ──
+    # TIM Nov 2018: source data has wrong values for RJ and SP.
+    # Correct total should be 479019; distribute deficit to RJ and SP
+    # proportionally based on Oct/Dec averages.
+    mask_tim_nov = (result["operator"] == "TIM") & (result["month"] == "2018-11")
+    current_total = result.loc[mask_tim_nov, "accesses"].sum()
+    target_total = 479019
+    deficit = target_total - current_total
+
+    if deficit > 0:
+        mask_rj = mask_tim_nov & (result["UF"] == "RJ")
+        mask_sp = mask_tim_nov & (result["UF"] == "SP")
+        # Split deficit proportionally (~43% RJ, ~57% SP based on neighbors)
+        rj_share = round(deficit * 0.43)
+        sp_share = deficit - rj_share
+        result.loc[mask_rj, "accesses"] = result.loc[mask_rj, "accesses"] + rj_share
+        result.loc[mask_sp, "accesses"] = result.loc[mask_sp, "accesses"] + sp_share
 
     print(f"  Total broadband rows: {len(result)}")
     return result

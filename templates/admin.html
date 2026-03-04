@@ -88,6 +88,21 @@
             <button type="submit" id="submit-btn">Upload</button>
         </form>
         <div class="status" id="status"></div>
+
+        <hr style="margin: 28px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+        <h1>Upload Anatel Data</h1>
+        <form id="anatel-form">
+            <label for="broadband">Broadband (.csv / .xlsx) — pode selecionar vários</label>
+            <input type="file" id="broadband" name="broadband" accept=".csv,.xlsx" multiple>
+
+            <label for="mobile">Mobile (.csv / .xlsx) — pode selecionar vários</label>
+            <input type="file" id="mobile" name="mobile" accept=".csv,.xlsx" multiple>
+
+            <button type="submit" id="anatel-btn">Upload &amp; Reprocessar</button>
+        </form>
+        <div class="status" id="anatel-status"></div>
+
         <a href="/admin/pairs" class="back-link">Manage Pair Trades</a>
         <a href="/admin/logout" class="back-link">Logout</a>
         <a href="/" class="back-link">Back to site</a>
@@ -136,6 +151,47 @@
             btn.disabled = false;
             btn.textContent = "Upload";
         });
+    document.getElementById("anatel-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("anatel-btn");
+        const status = document.getElementById("anatel-status");
+        btn.disabled = true;
+        btn.textContent = "Uploading & reprocessando...";
+        status.className = "status";
+        status.style.display = "none";
+
+        const form = new FormData();
+        const bbFiles = document.getElementById("broadband").files;
+        const mobFiles = document.getElementById("mobile").files;
+        for (const f of bbFiles) form.append("broadband", f);
+        for (const f of mobFiles) form.append("mobile", f);
+
+        if (bbFiles.length === 0 && mobFiles.length === 0) {
+            status.textContent = "Selecione pelo menos um arquivo.";
+            status.className = "status error";
+            btn.disabled = false;
+            btn.textContent = "Upload & Reprocessar";
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/upload-anatel", { method: "POST", body: form });
+            const data = await res.json();
+            if (res.ok) {
+                status.textContent = "Sucesso: " + data.results.join(", ");
+                status.className = "status success";
+            } else {
+                status.textContent = "Erro: " + (data.error || "Upload failed");
+                status.className = "status error";
+            }
+        } catch (err) {
+            status.textContent = "Erro de conexão: " + err.message;
+            status.className = "status error";
+        }
+
+        btn.disabled = false;
+        btn.textContent = "Upload & Reprocessar";
+    });
     </script>
 </body>
 </html>

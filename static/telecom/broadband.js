@@ -1,18 +1,18 @@
 // ── Broadband Dashboard ──
 
 const BB_ALL_OPERATORS = [
-    "Vivo", "Claro", "Niu", "Brisanet", "Giga+",
-    "Vero", "Tecpar", "Desktop", "TIM", "Unifique", "Others"
+    "Vivo", "Claro", "Nio", "Brisanet", "Giga+",
+    "Vero", "Tecpar", "Desktop", "TIM", "Unifique", "Starlink", "Others"
 ];
 
-const BB_TABLE_OPS = ["Vivo", "Claro", "Niu", "Brisanet", "Giga+", "Vero", "Tecpar", "Desktop", "TIM", "Unifique"];
-const BB_BIG = ["Claro", "Vivo", "Niu"];
-const BB_SMALL = ["Brisanet", "Giga+", "Vero", "Tecpar", "Desktop", "TIM", "Unifique"];
+const BB_TABLE_OPS = ["Vivo", "Claro", "Nio", "Brisanet", "Giga+", "Vero", "Tecpar", "Desktop", "TIM", "Unifique", "Starlink"];
+const BB_BIG = ["Claro", "Vivo", "Nio"];
+const BB_SMALL = ["Brisanet", "Giga+", "Vero", "Tecpar", "Desktop", "TIM", "Unifique", "Starlink"];
 
 const OPERATOR_COLORS = {
     "Vivo":     "#7B2D8E",
     "Claro":    "#E31E24",
-    "Niu":      "#F5A623",
+    "Nio":      "#F5A623",
     "Brisanet": "#00A651",
     "Giga+":    "#0098DB",
     "Vero":     "#FF6B35",
@@ -20,6 +20,7 @@ const OPERATOR_COLORS = {
     "Desktop":  "#1A73E8",
     "TIM":      "#003399",
     "Unifique": "#00BCD4",
+    "Starlink": "#1E1E1E",
     "Others":   "#999999",
 };
 

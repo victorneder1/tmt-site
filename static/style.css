@@ -40,7 +40,7 @@ body {
     font-family: 'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background: #f9f9f9;
     color: #191919;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.4;
 }
 
@@ -175,7 +175,7 @@ main {
     border: 1px solid #d0d0d0;
     border-radius: 4px;
     color: #191919;
-    font-size: 13px;
+    font-size: 14px;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -264,7 +264,7 @@ table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 12px;
+    font-size: 13px;
     table-layout: fixed;
 }
 
@@ -276,7 +276,7 @@ thead tr.group-header th {
     background: #001F62;
     color: #ffffff;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 13px;
     padding: 9px 6px;
     text-align: center;
     border-bottom: 1px solid #1a3878;
@@ -308,7 +308,7 @@ thead tr.sub-header th {
     background: #0a2a6e;
     color: rgba(255, 255, 255, 0.75);
     font-weight: 600;
-    font-size: 11px;
+    font-size: 12px;
     padding: 5px 6px;
     text-align: center;
     border-bottom: 2px solid #195AB4;
@@ -505,7 +505,7 @@ tfoot td.col-company {
 }
 
 .pairs-section-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     color: #001F62;
     text-transform: uppercase;
@@ -557,7 +557,7 @@ tfoot td.col-company {
 
 .pair-tickers h3 {
     margin: 0 0 2px;
-    font-size: 14px;
+    font-size: 15px;
     color: #001F62;
     font-weight: 700;
 }
@@ -638,7 +638,7 @@ tfoot td.col-company {
 }
 
 .ret {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 3px;
@@ -656,7 +656,7 @@ tfoot td.col-company {
 .price-item {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .pl { color: #888; }

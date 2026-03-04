@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 
 from data_parser import parse_software_comps, parse_itservices_comps, get_last_updated
 import pairs_service
+import process_data_telecom
 from telecom import telecom_bp
 
 app = Flask(__name__)
@@ -203,6 +204,38 @@ def api_upload():
 
     if not results:
         return jsonify({"error": "No files provided"}), 400
+
+    return jsonify({"status": "ok", "results": results})
+
+
+# ── Anatel Upload + Reprocess ──────────────────────────────────────────────
+
+@app.route("/api/upload-anatel", methods=["POST"])
+def api_upload_anatel():
+    if not _is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
+
+    results = []
+
+    for field, target_dir in [("broadband", process_data_telecom.BB_DIR), ("mobile", process_data_telecom.MOB_DIR)]:
+        files = request.files.getlist(field)
+        for file in files:
+            if file and file.filename:
+                fname = secure_filename(file.filename)
+                os.makedirs(target_dir, exist_ok=True)
+                file.save(os.path.join(target_dir, fname))
+                results.append(f"{field}: {fname}")
+
+    if not results:
+        return jsonify({"error": "No files provided"}), 400
+
+    try:
+        bb = process_data_telecom.process_broadband()
+        mob = process_data_telecom.process_mobile()
+        process_data_telecom.save_to_db(bb, mob)
+        results.append("database: rebuilt")
+    except Exception as e:
+        return jsonify({"error": f"Upload ok but reprocess failed: {e}", "results": results}), 500
 
     return jsonify({"status": "ok", "results": results})
 

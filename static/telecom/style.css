@@ -40,7 +40,7 @@ body {
     font-family: 'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background: #f4f5f7;
     color: #191919;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.4;
 }
 
@@ -171,7 +171,7 @@ main {
     padding: 7px 12px;
     border: 1px solid #d0d0d0;
     border-radius: 4px;
-    font-size: 13px;
+    font-size: 14px;
     color: #191919;
     background: #ffffff;
     outline: none;
@@ -294,7 +294,7 @@ main {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .card-table thead th {
@@ -304,7 +304,7 @@ main {
     background: #001F62;
     color: #ffffff;
     font-weight: 700;
-    font-size: 11px;
+    font-size: 12px;
     padding: 8px 10px;
     text-align: center;
     border-bottom: 2px solid #195AB4;
