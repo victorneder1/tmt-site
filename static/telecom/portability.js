@@ -124,9 +124,17 @@ function renderPortDashboard(data) {
     const { months, netMap, giverMap, receiverMap } = buildPortMaps(data, PORT_TABLE_OPS);
     const displayMonths = months.slice(-PORT_TABLE_MAX_MONTHS);
 
-    renderPortTable("port-net-table", displayMonths, PORT_TABLE_OPS, netMap, true);
-    renderPortTable("port-giver-table", displayMonths, PORT_TABLE_OPS, giverMap, false);
-    renderPortTable("port-receiver-table", displayMonths, PORT_TABLE_OPS, receiverMap, false);
+    // Sort operators once by net portability (last month, descending)
+    const lastMonth = displayMonths[displayMonths.length - 1];
+    const sortedOps = [...PORT_TABLE_OPS].sort((a, b) => {
+        const va = (netMap[a] && netMap[a][lastMonth]) || 0;
+        const vb = (netMap[b] && netMap[b][lastMonth]) || 0;
+        return vb - va;
+    });
+
+    renderPortTable("port-net-table", displayMonths, sortedOps, netMap, true);
+    renderPortTable("port-giver-table", displayMonths, sortedOps, giverMap, false);
+    renderPortTable("port-receiver-table", displayMonths, sortedOps, receiverMap, false);
     renderNetPortabilityChart(displayMonths, PORT_TABLE_OPS, netMap);
 
     renderPortBreakdown(data);
@@ -148,17 +156,8 @@ function renderPortTable(tableId, months, operators, opMonthMap, isNet) {
     });
     thead.appendChild(hr);
 
-    // Sort operators: for net sort by absolute value desc, for giver/receiver sort by value desc
-    const lastMonth = months[months.length - 1];
-    const sorted = [...operators].filter(op => opMonthMap[op]).sort((a, b) => {
-        const va = (opMonthMap[a] && opMonthMap[a][lastMonth]) || 0;
-        const vb = (opMonthMap[b] && opMonthMap[b][lastMonth]) || 0;
-        if (isNet) return Math.abs(vb) - Math.abs(va);
-        return vb - va;
-    });
-
     tbody.innerHTML = "";
-    sorted.forEach(op => {
+    operators.forEach(op => {
         const tr = document.createElement("tr");
 
         // Operator name cell
