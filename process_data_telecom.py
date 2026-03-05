@@ -367,6 +367,20 @@ def save_to_db(broadband_df, mobile_df, portability_df=None):
     print(f"Database saved to {DB_PATH}")
 
 
+def save_portability_to_db(portability_df):
+    """Save only the portability table (preserves existing broadband/mobile)."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("DROP TABLE IF EXISTS portability")
+    portability_df.to_sql("portability", conn, index=False)
+    conn.execute("CREATE INDEX idx_port_month ON portability(month)")
+    conn.execute("CREATE INDEX idx_port_giver ON portability(giver)")
+    conn.execute("CREATE INDEX idx_port_receiver ON portability(receiver)")
+    conn.execute("CREATE INDEX idx_port_uf ON portability(UF)")
+    conn.commit()
+    conn.close()
+    print(f"Portability table saved to {DB_PATH}")
+
+
 if __name__ == "__main__":
     bb = process_broadband()
     mob = process_mobile()

@@ -237,11 +237,20 @@ def api_upload_anatel():
         return jsonify({"error": "No files provided"}), 400
 
     try:
-        bb = process_data_telecom.process_broadband()
-        mob = process_data_telecom.process_mobile()
-        port = process_data_telecom.process_portability()
-        process_data_telecom.save_to_db(bb, mob, port)
-        results.append("database: rebuilt")
+        has_bb_mob = any(r.startswith("broadband:") or r.startswith("mobile:") for r in results)
+        has_port = any(r.startswith("portability:") for r in results)
+
+        if has_bb_mob:
+            bb = process_data_telecom.process_broadband()
+            mob = process_data_telecom.process_mobile()
+            port = process_data_telecom.process_portability()
+            process_data_telecom.save_to_db(bb, mob, port)
+            results.append("database: full rebuild")
+        elif has_port:
+            port = process_data_telecom.process_portability()
+            if port is not None:
+                process_data_telecom.save_portability_to_db(port)
+                results.append("database: portability rebuilt")
     except Exception as e:
         return jsonify({"error": f"Upload ok but reprocess failed: {e}", "results": results}), 500
 
