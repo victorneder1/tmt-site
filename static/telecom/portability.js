@@ -215,11 +215,12 @@ function renderPortBreakdownTable(tableId, months, operators, opMonthMap) {
 
     // Total row
     const trTotal = document.createElement("tr");
-    trTotal.style.borderTop = "2px solid #001F62";
+    const borderStyle = "2px solid #001F62";
     const tdTotalLabel = document.createElement("td");
     tdTotalLabel.textContent = "Total";
     tdTotalLabel.style.fontWeight = "700";
     tdTotalLabel.style.color = "#001F62";
+    tdTotalLabel.style.borderTop = borderStyle;
     trTotal.appendChild(tdTotalLabel);
 
     months.forEach(m => {
@@ -230,6 +231,7 @@ function renderPortBreakdownTable(tableId, months, operators, opMonthMap) {
         });
         td.textContent = portFmtNum(sum);
         td.style.fontWeight = "700";
+        td.style.borderTop = borderStyle;
         td.className = sum >= 0 ? "val-positive" : "val-negative";
         trTotal.appendChild(td);
     });
