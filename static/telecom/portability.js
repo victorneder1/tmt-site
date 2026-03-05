@@ -295,16 +295,17 @@ function renderPortBreakdown(data) {
 
     // Show main operators as counterparties (exclude self), plus "Others" aggregate
     const mainCPs = PORT_TABLE_OPS.filter(op => op !== selectedOp);
-    const otherOps = Object.keys(pairNet).filter(op => !mainCPs.includes(op));
+    const otherOps = Object.keys(pairNet).filter(op => !PORT_TABLE_OPS.includes(op));
 
-    // Aggregate all non-main counterparties into "Others" (includes self-transfers and non-PORT_TABLE_OPS)
+    // Aggregate all non-main counterparties into "Others"
     if (otherOps.length > 0) {
-        pairNet["Others"] = {};
+        const othersAcc = {};
         otherOps.forEach(op => {
             months.forEach(m => {
-                pairNet["Others"][m] = (pairNet["Others"][m] || 0) + ((pairNet[op] && pairNet[op][m]) || 0);
+                othersAcc[m] = (othersAcc[m] || 0) + ((pairNet[op] && pairNet[op][m]) || 0);
             });
         });
+        pairNet["Others"] = othersAcc;
     }
 
     const counterparties = [...mainCPs.filter(cp => pairNet[cp]), ...(otherOps.length > 0 ? ["Others"] : [])];
