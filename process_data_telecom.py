@@ -12,10 +12,12 @@ import sqlite3
 import unicodedata
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "data", "anatel.db")
-BB_DIR = os.path.join(os.path.dirname(__file__), "Database", "Broadband")
-MOB_DIR = os.path.join(os.path.dirname(__file__), "Database", "Mobile")
-PORT_CSV = os.path.join(os.path.dirname(__file__), "Database", "CSV_PORTABILIDADE.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
+DB_PATH = os.path.join(DATA_DIR, "anatel.db")
+BB_DIR = os.path.join(BASE_DIR, "Database", "Broadband")
+MOB_DIR = os.path.join(BASE_DIR, "Database", "Mobile")
+PORT_CSV = os.path.join(BASE_DIR, "Database", "CSV_PORTABILIDADE.csv")
 
 # ── Operator mappings ──
 # Old CSV: "Grupo Econômico" values
@@ -369,6 +371,7 @@ def save_to_db(broadband_df, mobile_df, portability_df=None):
 
 def save_portability_to_db(portability_df):
     """Save only the portability table (preserves existing broadband/mobile)."""
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.execute("DROP TABLE IF EXISTS portability")
     portability_df.to_sql("portability", conn, index=False)

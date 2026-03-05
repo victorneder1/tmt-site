@@ -8,7 +8,9 @@ from flask import Blueprint, render_template, jsonify, request
 
 telecom_bp = Blueprint("telecom", __name__, url_prefix="/telecom")
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "data", "anatel.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
+DB_PATH = os.path.join(DATA_DIR, "anatel.db")
 
 UF_NAMES = {
     "AC": "Acre", "AL": "Alagoas", "AM": "Amazonas", "AP": "Amapá",
