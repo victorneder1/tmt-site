@@ -233,8 +233,19 @@ def api_upload_anatel():
         port_file.save(process_data_telecom.PORT_CSV)
         results.append(f"portability: {port_file.filename}")
 
+    # Direct DB upload (pre-built anatel.db)
+    db_file = request.files.get("anatel_db")
+    if db_file and db_file.filename:
+        os.makedirs(os.path.dirname(process_data_telecom.DB_PATH), exist_ok=True)
+        db_file.save(process_data_telecom.DB_PATH)
+        results.append(f"anatel_db: {db_file.filename}")
+
     if not results:
         return jsonify({"error": "No files provided"}), 400
+
+    # If we got a direct DB upload, skip reprocessing
+    if any(r.startswith("anatel_db:") for r in results):
+        return jsonify({"status": "ok", "results": results})
 
     try:
         has_bb_mob = any(r.startswith("broadband:") or r.startswith("mobile:") for r in results)
