@@ -312,6 +312,9 @@ def process_mobile():
 def process_portability():
     """Process portability CSV into aggregated pair-wise monthly data (SMP only)."""
     print("Processing Portability data...")
+    if not os.path.exists(PORT_CSV):
+        print("  Portability CSV not found, skipping.")
+        return None
     df = pd.read_csv(PORT_CSV, sep=";", encoding="utf-8-sig", dtype=str, low_memory=False)
 
     # Filter SMP only

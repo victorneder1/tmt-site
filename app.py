@@ -226,6 +226,13 @@ def api_upload_anatel():
                 file.save(os.path.join(target_dir, fname))
                 results.append(f"{field}: {fname}")
 
+    # Portability CSV (single file, saved to the exact path expected by ETL)
+    port_file = request.files.get("portability")
+    if port_file and port_file.filename:
+        os.makedirs(os.path.dirname(process_data_telecom.PORT_CSV), exist_ok=True)
+        port_file.save(process_data_telecom.PORT_CSV)
+        results.append(f"portability: {port_file.filename}")
+
     if not results:
         return jsonify({"error": "No files provided"}), 400
 
