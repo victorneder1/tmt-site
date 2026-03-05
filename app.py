@@ -232,7 +232,8 @@ def api_upload_anatel():
     try:
         bb = process_data_telecom.process_broadband()
         mob = process_data_telecom.process_mobile()
-        process_data_telecom.save_to_db(bb, mob)
+        port = process_data_telecom.process_portability()
+        process_data_telecom.save_to_db(bb, mob, port)
         results.append("database: rebuilt")
     except Exception as e:
         return jsonify({"error": f"Upload ok but reprocess failed: {e}", "results": results}), 500

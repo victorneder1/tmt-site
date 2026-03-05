@@ -33,6 +33,7 @@
     <nav class="tabs main-tabs">
         <button class="tab main-tab active" data-main="broadband">Broadband</button>
         <button class="tab main-tab" data-main="mobile">Mobile</button>
+        <button class="tab main-tab" data-main="portability">Portability</button>
     </nav>
 
     <main>
@@ -180,6 +181,79 @@
                 </div>
             </div>
         </div>
+
+        <!-- ── PORTABILITY SECTION ── -->
+        <div id="portability-main" class="main-content">
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>State</label>
+                    <select id="port-uf-select">
+                        <option value="">All Brazil</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Net Portability Table -->
+            <div class="card card-table">
+                <h3 class="card-title">Net Portability</h3>
+                <div class="table-wrapper">
+                    <table id="port-net-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Giver Total Table -->
+            <div class="card card-table">
+                <h3 class="card-title">Giver — Total</h3>
+                <div class="table-wrapper">
+                    <table id="port-giver-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Receiver Total Table -->
+            <div class="card card-table">
+                <h3 class="card-title">Receiver — Total</h3>
+                <div class="table-wrapper">
+                    <table id="port-receiver-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Consolidated Net Portability Chart -->
+            <div class="card">
+                <h3 class="card-title">Net Portability</h3>
+                <div class="chart-container"><canvas id="port-net-chart"></canvas></div>
+            </div>
+
+            <!-- Per-company breakdown -->
+            <div class="section-header">Portability Breakdown by Operator</div>
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>Company</label>
+                    <select id="port-company-select"></select>
+                </div>
+            </div>
+            <div class="card card-table">
+                <h3 class="card-title" id="port-breakdown-title">Net Portability vs. Counterparties</h3>
+                <div class="table-wrapper">
+                    <table id="port-breakdown-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <h3 class="card-title" id="port-breakdown-chart-title">Net Portability by Operator</h3>
+                <div class="chart-container"><canvas id="port-breakdown-chart"></canvas></div>
+            </div>
+        </div>
     </main>
 
     <footer class="analysts-footer">
@@ -203,6 +277,7 @@
 
     <script src="/static/telecom/broadband.js"></script>
     <script src="/static/telecom/mobile.js"></script>
+    <script src="/static/telecom/portability.js"></script>
     <script>
         // Main tab switching
         document.querySelectorAll(".main-tab").forEach(tab => {
@@ -215,6 +290,10 @@
                 if (target === "mobile" && !window._mobileLoaded) {
                     initMobile();
                     window._mobileLoaded = true;
+                }
+                if (target === "portability" && !window._portabilityLoaded) {
+                    initPortability();
+                    window._portabilityLoaded = true;
                 }
             });
         });

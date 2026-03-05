@@ -125,3 +125,55 @@ def api_mobile_months():
     rows = conn.execute("SELECT DISTINCT month FROM mobile ORDER BY month").fetchall()
     conn.close()
     return jsonify([r["month"] for r in rows])
+
+
+# ── API: Portability ──
+
+@telecom_bp.route("/api/portability")
+def api_portability():
+    conn = get_db()
+    uf = request.args.get("uf", "")
+    month_from = request.args.get("from", "")
+    month_to = request.args.get("to", "")
+
+    query = "SELECT giver, receiver, month, SUM(quantity) as quantity FROM portability WHERE 1=1"
+    params = []
+
+    if uf:
+        query += " AND UF = ?"
+        params.append(uf)
+    if month_from:
+        query += " AND month >= ?"
+        params.append(month_from)
+    if month_to:
+        query += " AND month <= ?"
+        params.append(month_to)
+
+    query += " GROUP BY giver, receiver, month ORDER BY month, giver, receiver"
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+
+    data = [{"giver": r["giver"], "receiver": r["receiver"], "month": r["month"], "quantity": r["quantity"]} for r in rows]
+    return jsonify(data)
+
+
+@telecom_bp.route("/api/portability/months")
+def api_portability_months():
+    conn = get_db()
+    rows = conn.execute("SELECT DISTINCT month FROM portability ORDER BY month").fetchall()
+    conn.close()
+    return jsonify([r["month"] for r in rows])
+
+
+@telecom_bp.route("/api/portability/operators")
+def api_portability_operators():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT DISTINCT op FROM (
+            SELECT giver AS op FROM portability
+            UNION
+            SELECT receiver AS op FROM portability
+        ) ORDER BY op
+    """).fetchall()
+    conn.close()
+    return jsonify([r["op"] for r in rows])

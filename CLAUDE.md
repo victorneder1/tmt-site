@@ -44,6 +44,7 @@ pip install -r requirements-local.txt        # Windows COM automation (pywin32)
 | `static/app.js` | Screening UI: dynamic grouped headers, sort, search, GAAP/NonGAAP toggle, BTGe badges, auto-refresh 5min |
 | `static/pairs.js` | Pairs UI: performance cards, Chart.js history graphs, inception/close date clamping, auto-refresh 30s |
 | `telecom.py` | Flask Blueprint (`/telecom`), queries Anatel SQLite DB (`data/anatel.db`) for broadband & mobile operator data |
+| `process_data_telecom.py` | ETL for Anatel data: aggregates operator market share from raw CSVs/Excel, handles old (pivoted CSV) and new (Excel) formats, normalizes operator names |
 | `static/telecom/broadband.js`, `mobile.js` | Telecom dashboard UI: operator market share charts filtered by state/month/tech |
 
 ### Telecom Blueprint
@@ -55,6 +56,18 @@ Registered as `telecom_bp` with prefix `/telecom`. Has its own templates (`templ
 - **Public**: `/`, `/api/software`, `/api/itservices`, `/api/last-updated`, `/api/pairs`, `/api/pairs/<id>/history`
 - **Admin**: Session-based login (`/admin/login`) or `X-Upload-Key` header
 - BTG estimate companies (highlighted with "BTGe" badge): defined in `BTG_COMPANIES` array in `app.js`
+
+## Database Schemas
+
+**pairs.db** — `pairs` table: `id` (PK), `long_ticker`, `short_ticker`, `entry_price_long`, `entry_price_short` (single value or JSON array for baskets), `entry_date`, `inception_date`, `status` (open/closed), `closed_date`, `close_price_long`, `close_price_short`, `sort_order`, `created_at`.
+
+**anatel.db** — `broadband` table: `operator`, `month` (YYYY-MM), `UF`, `tech`, `accesses`. `mobile` table: `operator`, `month` (YYYY-MM), `UF`, `segment`, `accesses`.
+
+## API Routes
+
+Main: `/api/software`, `/api/itservices`, `/api/pairs`, `/api/pairs/<id>/history`, `/api/pairs/<id>` (DELETE), `/api/pairs/reorder`, `/api/pairs/<id>/update-close`, `/api/upload`, `/api/upload-anatel`, `/api/last-updated`.
+
+Telecom: `/telecom/api/broadband`, `/telecom/api/broadband/months`, `/telecom/api/broadband/states`, `/telecom/api/mobile`, `/telecom/api/mobile/months`.
 
 ## Environment Variables
 

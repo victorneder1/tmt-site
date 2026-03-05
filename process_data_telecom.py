@@ -15,6 +15,7 @@ import pandas as pd
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "anatel.db")
 BB_DIR = os.path.join(os.path.dirname(__file__), "Database", "Broadband")
 MOB_DIR = os.path.join(os.path.dirname(__file__), "Database", "Mobile")
+PORT_CSV = os.path.join(os.path.dirname(__file__), "Database", "CSV_PORTABILIDADE.csv")
 
 # ── Operator mappings ──
 # Old CSV: "Grupo Econômico" values
@@ -62,6 +63,19 @@ MOB_OPS_NEW = {
     "TIM": "TIM",
     "BRISANET": "Brisanet",
     "UNIFIQUE": "Unifique",
+}
+
+
+PORT_OPS = {
+    "CLARO": "Claro",
+    "TELEFONICA BRASIL": "Vivo",
+    "OI S.A.": "Oi",
+    "TIM S.A.": "TIM",
+    "BRISANET SERVICOS DE TELECOMUNICACOES S.A.": "Brisanet",
+    "UNIFIQUE TELECOMUNICACOES S/A": "Unifique",
+    "NEXTEL TELECOM.": "Claro",
+    "ALGAR TELECOM": "Algar",
+    "SERCOMTEL": "Sercomtel",
 }
 
 
@@ -295,7 +309,29 @@ def process_mobile():
     return result
 
 
-def save_to_db(broadband_df, mobile_df):
+def process_portability():
+    """Process portability CSV into aggregated pair-wise monthly data (SMP only)."""
+    print("Processing Portability data...")
+    df = pd.read_csv(PORT_CSV, sep=";", encoding="utf-8-sig", dtype=str, low_memory=False)
+
+    # Filter SMP only
+    df = df[df["SG_SERVICO"] == "SMP"]
+
+    df["quantity"] = pd.to_numeric(df["QT_PORTABILIDADE_EFETIVADA"], errors="coerce").fillna(0).astype(int)
+    df["month"] = df["AM_EFETIVACAO"]
+    df["UF"] = df["SG_UF"]
+
+    df["giver"] = df["NO_PRESTADORA_DOADORA"].apply(lambda g: map_operator_exact(g, PORT_OPS))
+    df["receiver"] = df["NO_PRESTADORA_RECEPTORA"].apply(lambda r: map_operator_exact(r, PORT_OPS))
+
+    result = df.groupby(["giver", "receiver", "month", "UF"], as_index=False)["quantity"].sum()
+    result = result.sort_values(["month", "giver", "receiver", "UF"])
+
+    print(f"  Total portability rows: {len(result)}")
+    return result
+
+
+def save_to_db(broadband_df, mobile_df, portability_df=None):
     """Save aggregated data to SQLite."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
@@ -315,6 +351,14 @@ def save_to_db(broadband_df, mobile_df):
     conn.execute("CREATE INDEX idx_mob_uf ON mobile(UF)")
     conn.execute("CREATE INDEX idx_mob_segment ON mobile(segment)")
 
+    if portability_df is not None:
+        conn.execute("DROP TABLE IF EXISTS portability")
+        portability_df.to_sql("portability", conn, index=False)
+        conn.execute("CREATE INDEX idx_port_month ON portability(month)")
+        conn.execute("CREATE INDEX idx_port_giver ON portability(giver)")
+        conn.execute("CREATE INDEX idx_port_receiver ON portability(receiver)")
+        conn.execute("CREATE INDEX idx_port_uf ON portability(UF)")
+
     conn.commit()
     conn.close()
     print(f"Database saved to {DB_PATH}")
@@ -323,5 +367,6 @@ def save_to_db(broadband_df, mobile_df):
 if __name__ == "__main__":
     bb = process_broadband()
     mob = process_mobile()
-    save_to_db(bb, mob)
+    port = process_portability()
+    save_to_db(bb, mob, port)
     print("Done!")
