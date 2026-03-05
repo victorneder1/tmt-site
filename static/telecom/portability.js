@@ -180,6 +180,62 @@ function renderPortTable(tableId, months, operators, opMonthMap, isNet) {
     });
 }
 
+// ── Breakdown Table (with Total row) ──
+
+function renderPortBreakdownTable(tableId, months, operators, opMonthMap) {
+    const table = document.getElementById(tableId);
+    const thead = table.querySelector("thead");
+    const tbody = table.querySelector("tbody");
+
+    thead.innerHTML = "";
+    const hr = document.createElement("tr");
+    hr.appendChild(Object.assign(document.createElement("th"), { textContent: "" }));
+    months.forEach(m => {
+        hr.appendChild(Object.assign(document.createElement("th"), { textContent: portFmtMonth(m) }));
+    });
+    thead.appendChild(hr);
+
+    tbody.innerHTML = "";
+    operators.forEach(op => {
+        const tr = document.createElement("tr");
+        const tdName = document.createElement("td");
+        tdName.textContent = op;
+        tdName.style.fontWeight = "700";
+        tr.appendChild(tdName);
+
+        months.forEach(m => {
+            const td = document.createElement("td");
+            const val = (opMonthMap[op] && opMonthMap[op][m]) || 0;
+            td.textContent = portFmtNum(val);
+            td.className = val >= 0 ? "val-positive" : "val-negative";
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+
+    // Total row
+    const trTotal = document.createElement("tr");
+    trTotal.style.borderTop = "2px solid #001F62";
+    const tdTotalLabel = document.createElement("td");
+    tdTotalLabel.textContent = "Total";
+    tdTotalLabel.style.fontWeight = "700";
+    tdTotalLabel.style.color = "#001F62";
+    trTotal.appendChild(tdTotalLabel);
+
+    months.forEach(m => {
+        const td = document.createElement("td");
+        let sum = 0;
+        operators.forEach(op => {
+            sum += (opMonthMap[op] && opMonthMap[op][m]) || 0;
+        });
+        td.textContent = portFmtNum(sum);
+        td.style.fontWeight = "700";
+        td.className = sum >= 0 ? "val-positive" : "val-negative";
+        trTotal.appendChild(td);
+    });
+    tbody.appendChild(trTotal);
+}
+
 // ── Consolidated Net Portability Chart ──
 
 function renderNetPortabilityChart(months, operators, netMap) {
@@ -239,9 +295,9 @@ function renderPortBreakdown(data) {
 
     // Show main operators as counterparties (exclude self), plus "Others" aggregate
     const mainCPs = PORT_TABLE_OPS.filter(op => op !== selectedOp);
-    const otherOps = Object.keys(pairNet).filter(op => !PORT_TABLE_OPS.includes(op));
+    const otherOps = Object.keys(pairNet).filter(op => !mainCPs.includes(op));
 
-    // Aggregate all non-main counterparties into "Others"
+    // Aggregate all non-main counterparties into "Others" (includes self-transfers and non-PORT_TABLE_OPS)
     if (otherOps.length > 0) {
         pairNet["Others"] = {};
         otherOps.forEach(op => {
@@ -253,7 +309,7 @@ function renderPortBreakdown(data) {
 
     const counterparties = [...mainCPs.filter(cp => pairNet[cp]), ...(otherOps.length > 0 ? ["Others"] : [])];
 
-    renderPortTable("port-breakdown-table", displayMonths, counterparties, pairNet, true);
+    renderPortBreakdownTable("port-breakdown-table", displayMonths, counterparties, pairNet);
     renderPortBreakdownChart(displayMonths, counterparties, pairNet);
 }
 
