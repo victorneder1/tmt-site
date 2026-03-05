@@ -179,9 +179,11 @@ function renderBBMultiMonthTable(allMonths, opMonthMap) {
         const trHeader = document.createElement("tr");
         trHeader.className = "segment-label-row";
         const tdName = document.createElement("td");
-        tdName.colSpan = months.length + 1;
         tdName.textContent = op;
         trHeader.appendChild(tdName);
+        const tdRest = document.createElement("td");
+        tdRest.colSpan = months.length;
+        trHeader.appendChild(tdRest);
         tbody.appendChild(trHeader);
 
         // Accesses row

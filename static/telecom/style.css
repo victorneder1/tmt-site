@@ -480,9 +480,20 @@ main {
         padding: 6px 8px;
     }
 
-    .segment-label-row td {
+    .segment-label-row td:first-child {
         font-size: 10px;
         padding: 4px 8px;
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: #e8eff9;
+    }
+
+    .op-group-header td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: #0a2a6e;
     }
 
     .metric-label {

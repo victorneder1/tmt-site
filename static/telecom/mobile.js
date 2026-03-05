@@ -170,8 +170,10 @@ function addSegmentSection(tbody, segLabel, months, allMonths, operators, opMont
     trSeg.className = "op-group-header";
     const tdSeg = document.createElement("td");
     tdSeg.textContent = segLabel;
-    tdSeg.colSpan = months.length + 1;
     trSeg.appendChild(tdSeg);
+    const tdSegRest = document.createElement("td");
+    tdSegRest.colSpan = months.length;
+    trSeg.appendChild(tdSegRest);
     tbody.appendChild(trSeg);
 
     operators.forEach((op, opIdx) => {
@@ -181,9 +183,11 @@ function addSegmentSection(tbody, segLabel, months, allMonths, operators, opMont
         const trHeader = document.createElement("tr");
         trHeader.className = "segment-label-row";
         const tdName = document.createElement("td");
-        tdName.colSpan = months.length + 1;
         tdName.textContent = op;
         trHeader.appendChild(tdName);
+        const tdRest = document.createElement("td");
+        tdRest.colSpan = months.length;
+        trHeader.appendChild(tdRest);
         tbody.appendChild(trHeader);
 
         // Accesses
