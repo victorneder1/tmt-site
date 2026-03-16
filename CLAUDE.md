@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Global AIM** — Flask web app for financial screening data visualization (Visible Alpha comparables) and trading pair performance tracking (Yahoo Finance). Deployed on Railway.
+**Global AIM** — Flask web app for financial screening data visualization (Visible Alpha comparables) and trading pair performance tracking (Yahoo Finance). Deployed on Railway at `https://web-production-9e57a.up.railway.app`.
 
 ## Commands
 
