@@ -11,13 +11,16 @@ from typing import Any
 DEFAULT_POLL_INTERVAL_SECONDS = 60
 DEFAULT_RECENT_LIMIT = 100
 DEFAULT_COMPANIES_FILE = "companies_bz.json"
-DEFAULT_STATE_FILE = "data/corporate_state.json"
 DEFAULT_LOCAL_SETTINGS_FILE = "settings.local.json"
 DEFAULT_HISTORY_START_DATE = "2024-01-01"
-DEFAULT_DOCUMENTS_DB_FILE = "data/corporate_bz.db"
-DEFAULT_PARSED_DATA_FILE = "data/corporate_parsed.json"
-DEFAULT_PDF_CACHE_DIR = "data/pdfs"
-DEFAULT_EXPORT_XLSX_PATH = "data/exports/corporate_bz_monitor.xlsx"
+
+# Respect DATA_DIR env var (same convention as telecom.py / pairs_service.py)
+_DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+DEFAULT_STATE_FILE = _DATA_DIR / "corporate_state.json"
+DEFAULT_DOCUMENTS_DB_FILE = _DATA_DIR / "corporate_bz.db"
+DEFAULT_PARSED_DATA_FILE = _DATA_DIR / "corporate_parsed.json"
+DEFAULT_PDF_CACHE_DIR = _DATA_DIR / "pdfs"
+DEFAULT_EXPORT_XLSX_PATH = _DATA_DIR / "exports" / "corporate_bz_monitor.xlsx"
 
 
 @dataclass(slots=True)
