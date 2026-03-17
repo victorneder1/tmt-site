@@ -15,6 +15,8 @@ const PORT_COLORS = {
     "Others":   "#999999",
 };
 
+Chart.defaults.font.family = "'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif";
+
 let portCharts = {};
 let portAllMonths = [];
 let portRawData = [];
@@ -345,7 +347,7 @@ function portChartOpts() {
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-            legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 11 } } },
+            legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 13 } } },
             tooltip: {
                 callbacks: {
                     label: function (ctx) {
@@ -356,11 +358,11 @@ function portChartOpts() {
             },
         },
         scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+            x: { grid: { display: false }, ticks: { font: { size: 12 }, maxRotation: 45 } },
             y: {
                 grid: { color: "#f0f0f0" },
                 ticks: {
-                    font: { size: 10 },
+                    font: { size: 12 },
                     callback: function (v) { return (v / 1000).toFixed(0) + "k"; }
                 }
             },

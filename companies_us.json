@@ -1,0 +1,8 @@
+[
+  {"name": "America Movil",             "ticker": "AMX",  "sector": "Telecom",     "cik": "0001129137"},
+  {"name": "Globant",                   "ticker": "GLOB", "sector": "IT Services", "cik": "0001557860"},
+  {"name": "CI&T",                      "ticker": "CINT", "sector": "IT Services", "cik": "0001868995"},
+  {"name": "VTEX",                      "ticker": "VTEX", "sector": "Software",    "cik": "0001793663"},
+  {"name": "Zeta Global",               "ticker": "ZETA", "sector": "Software",    "cik": "0001851003"},
+  {"name": "Braze",                     "ticker": "BRZE", "sector": "Software",    "cik": "0001676238"}
+]

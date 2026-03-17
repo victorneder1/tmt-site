@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTG TMT — Buyback &amp; Insider Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/corporate/style.css">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GCQKDDFYX7"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-GCQKDDFYX7');</script>
+</head>
+<body>
+<header>
+    <div class="header-left">
+        <a href="https://www.btgpactual.com/research/" target="_blank">
+            <img src="/static/btg-logo.png" alt="BTG Pactual" class="header-logo">
+        </a>
+        <nav class="header-nav">
+            <a href="/global" class="header-nav-link">Global AIM</a>
+            <a href="/telecom" class="header-nav-link">Telecom</a>
+            <a href="/tracker" class="header-nav-link active">Buyback &amp; Insider Tracker</a>
+        </nav>
+    </div>
+    <div class="header-right">
+        <span id="lastUpdated" class="header-subtitle">Awaiting sync</span>
+    </div>
+</header>
+
+<!-- Tab bar -->
+<div class="tr-tab-bar">
+    <button class="tr-tab active" id="tab-buybacks" onclick="switchTab('buybacks')">Buybacks</button>
+    <button class="tr-tab" id="tab-insiders" onclick="switchTab('insiders')">Insiders</button>
+</div>
+
+<!-- Filter bar -->
+<div class="tr-filter-bar">
+    <span class="tr-filter-label">Filters</span>
+    <div class="tr-filter-controls">
+        <select id="sectorFilter" class="tr-sel" onchange="onFilterChange()">
+            <option value="all">All Sectors</option>
+            <option value="Software">Software</option>
+            <option value="Telecom">Telecom</option>
+            <option value="Hardware">Hardware</option>
+        </select>
+        <select id="companyFilter" class="tr-sel" onchange="onFilterChange()">
+            <option value="all">All Companies</option>
+        </select>
+        <select id="analyticsYearFilter" class="tr-sel tr-sel-date" onchange="onYearChange()">
+            <option value="">Year</option>
+        </select>
+        <select id="analyticsMonthFilter" class="tr-sel tr-sel-date" onchange="onFilterChange()">
+            <option value="">Month</option>
+        </select>
+    </div>
+    <span id="filterCount" class="tr-filter-count"></span>
+</div>
+
+<main class="tr-main">
+
+<!-- ── BUYBACKS TAB ── -->
+<div class="tr-content active" id="content-buybacks">
+    <div id="bbMonthlyPeriodLabel"></div>
+    <div id="bbMonthlyBlock" class="tr-g2 tr-mt14"></div>
+
+    <div id="bbRollingPeriodLabel"></div>
+    <div class="tr-rolling-controls">
+        <span class="tr-filter-label">Accumulated Period</span>
+        <select id="buybacksRollingFrom" class="tr-sel" onchange="renderAll(cache)"></select>
+        <span class="tr-period-arrow">→</span>
+        <select id="buybacksRollingTo" class="tr-sel" onchange="renderAll(cache)"></select>
+    </div>
+    <div id="bbRollingBlock" class="tr-g2 tr-mt14"></div>
+
+    <div id="bbHistoryPeriodLabel"></div>
+    <div class="tr-rolling-controls">
+        <span class="tr-filter-label">Company</span>
+        <select id="bbHistoryCompany" class="tr-sel tr-sel-cta" onchange="renderAll(cache)">
+            <option value="">Select a company</option>
+        </select>
+        <span class="tr-filter-label" style="margin-left:10px">Period</span>
+        <select id="bbHistoryFrom" class="tr-sel" onchange="renderAll(cache)"></select>
+        <span class="tr-period-arrow">→</span>
+        <select id="bbHistoryTo" class="tr-sel" onchange="renderAll(cache)"></select>
+    </div>
+    <div id="bbHistoryBlock" class="tr-mt14"></div>
+</div>
+
+<!-- ── INSIDERS TAB ── -->
+<div class="tr-content" id="content-insiders">
+    <div id="inMonthlyPeriodLabel"></div>
+    <div id="inMonthlyBlock" class="tr-g3 tr-mt14"></div>
+
+    <div id="inRollingPeriodLabel"></div>
+    <div class="tr-rolling-controls">
+        <span class="tr-filter-label">Accumulated Period</span>
+        <select id="insidersRollingFrom" class="tr-sel" onchange="renderAll(cache)"></select>
+        <span class="tr-period-arrow">→</span>
+        <select id="insidersRollingTo" class="tr-sel" onchange="renderAll(cache)"></select>
+    </div>
+    <div id="inRollingBlock" class="tr-glw tr-mt14"></div>
+</div>
+
+</main>
+
+<script src="/static/corporate/corporate.js"></script>
+
+<footer class="analysts-footer">
+    <div class="analyst">
+        <span class="analyst-name">Osni Carfi</span>
+        <a href="mailto:osni.carfi@btgpactual.com" class="analyst-email">osni.carfi@btgpactual.com</a>
+    </div>
+    <div class="analyst">
+        <span class="analyst-name">Carlos Sequeira, CFA</span>
+        <a href="mailto:carlos.sequeira@btgpactual.com" class="analyst-email">carlos.sequeira@btgpactual.com</a>
+    </div>
+    <div class="analyst">
+        <span class="analyst-name">Victor Neder</span>
+        <a href="mailto:victor.neder@btgpactual.com" class="analyst-email">victor.neder@btgpactual.com</a>
+    </div>
+    <div class="analyst">
+        <span class="analyst-name">Bruno Ferreira</span>
+        <a href="mailto:bruno-f.ferreira@btgpactual.com" class="analyst-email">bruno-f.ferreira@btgpactual.com</a>
+    </div>
+</footer>
+</body>
+</html>

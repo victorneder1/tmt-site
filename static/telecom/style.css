@@ -98,32 +98,34 @@ header {
     color: rgba(255, 255, 255, 0.6);
 }
 
-/* Tabs (sub-sections) */
+/* Tabs */
 .tabs {
     display: flex;
     gap: 0;
     padding: 0 28px;
-    background: #0a2a6e;
+    background: #ffffff;
+    border-bottom: 1px solid #d9e0ea;
 }
 
 .tab {
-    padding: 10px 28px;
+    padding: 13px 24px;
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.45);
+    color: #6b7b96;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: color 0.2s, border-color 0.2s;
+    font-family: 'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .tab:hover {
-    color: rgba(255, 255, 255, 0.85);
+    color: #001F62;
 }
 
 .tab.active {
-    color: #ffffff;
+    color: #195AB4;
     border-bottom-color: #195AB4;
 }
 
@@ -168,9 +170,9 @@ main {
 }
 
 .filter-group select {
-    padding: 7px 12px;
+    padding: 7px 14px;
     border: 1px solid #d0d0d0;
-    border-radius: 4px;
+    border-radius: 20px;
     font-size: 14px;
     color: #191919;
     background: #ffffff;
@@ -282,6 +284,15 @@ main {
 .chart-container {
     position: relative;
     height: 320px;
+}
+
+.chart-footnote {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #9baabf;
+    font-style: italic;
+    text-align: center;
+    font-family: 'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 /* ── Summary Table ── */
@@ -515,5 +526,39 @@ main {
         flex-direction: column;
         gap: 14px;
         padding: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        height: 200px;
+    }
+
+    .filter-group label {
+        font-size: 9px;
+    }
+
+    .toggle-switch-label {
+        min-height: 44px;
+        align-items: center;
+    }
+
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab {
+        white-space: nowrap;
+        padding: 9px 14px;
+        font-size: 12px;
+    }
+
+    .card {
+        padding: 14px 12px;
+    }
+
+    .card-title {
+        font-size: 12px;
     }
 }

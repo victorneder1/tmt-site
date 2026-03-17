@@ -1,0 +1,11 @@
+[
+  {"name": "Bemobi",            "cvm_code": "25500", "sector": "Software",    "ticker": "BMOB3"},
+  {"name": "Brisanet",          "cvm_code": "27693", "sector": "Telecom",     "ticker": "BRST3"},
+  {"name": "Desktop",           "cvm_code": "26026", "sector": "Telecom",     "ticker": "DESK3"},
+  {"name": "Intelbras",         "cvm_code": "25453", "sector": "Hardware",    "ticker": "INTB3"},
+  {"name": "LWSA",              "cvm_code": "24910", "sector": "Software",    "ticker": "LWSA3"},
+  {"name": "Telefonica Brasil", "cvm_code": "17671", "sector": "Telecom",     "ticker": "VIVT3"},
+  {"name": "TIM",               "cvm_code": "24929", "sector": "Telecom",     "ticker": "TIMS3"},
+  {"name": "Totvs",             "cvm_code": "19992", "sector": "Software",    "ticker": "TOTS3"},
+  {"name": "Unifique",          "cvm_code": "26050", "sector": "Telecom",     "ticker": "FIQE3"}
+]

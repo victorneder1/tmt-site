@@ -5,7 +5,12 @@ __pycache__/
 data/
 update_log.txt
 .env
+*.env
 venv/
 .venv/
 *.db
 Database/
+settings.local.json
+server.log
+data.zip
+test_email.py

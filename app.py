@@ -8,9 +8,11 @@ from data_parser import parse_software_comps, parse_itservices_comps, get_last_u
 import pairs_service
 import process_data_telecom
 from telecom import telecom_bp
+from corporate import create_tracker_bp
 
 app = Flask(__name__)
 app.register_blueprint(telecom_bp)
+app.register_blueprint(create_tracker_bp())
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -268,6 +270,19 @@ def api_upload_anatel():
     return jsonify({"status": "ok", "results": results})
 
 
+import atexit
+
+@atexit.register
+def _stop_monitors():
+    for key in ("bz_monitor", "sec_monitor"):
+        monitor = app.config.get(key)
+        if monitor:
+            try:
+                monitor.stop()
+            except Exception:
+                pass
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=port, use_reloader=False)

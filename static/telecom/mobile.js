@@ -14,6 +14,8 @@ const MOB_COLORS = {
 
 const MOB_TABLE_MAX_MONTHS = 12;
 
+Chart.defaults.font.family = "'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif";
+
 let mobCharts = {};
 let mobAllMonths = [];
 
@@ -297,25 +299,38 @@ function renderMobChartGroup(prefix, months, operators, opMonthMap, allMap) {
     const shareKey = prefix + "-share";
     if (mobCharts[shareKey]) mobCharts[shareKey].destroy();
     mobCharts[shareKey] = new Chart(document.getElementById(shareKey), {
-        type: "line",
+        type: "bar",
+        plugins: [ChartDataLabels],
         data: {
             labels: labels,
             datasets: ops.map(op => ({
                 label: op,
                 data: months.map(m => {
                     const total = marketTotals[m];
-                    return total > 0 ? ((opMonthMap[op][m] || 0) / total * 100) : 0;
+                    return total > 0 ? +((opMonthMap[op][m] || 0) / total * 100).toFixed(1) : 0;
                 }),
-                borderColor: MOB_COLORS[op], backgroundColor: MOB_COLORS[op] + "20",
-                borderWidth: 2, fill: false, tension: 0.3,
-                pointRadius: months.length > 24 ? 0 : 3, pointHoverRadius: 5,
+                backgroundColor: MOB_COLORS[op] + "CC",
+                borderColor: MOB_COLORS[op],
+                borderWidth: 1,
             })),
         },
         options: {
-            ...mobChartOpts(v => v.toFixed(0) + "%", ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`),
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 13 } } },
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } },
+                datalabels: {
+                    anchor: "center",
+                    align: "center",
+                    color: "#fff",
+                    font: { size: 12, weight: "600" },
+                    formatter: (value) => value >= 5 ? value.toFixed(1) + "%" : "",
+                },
+            },
             scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
-                y: { beginAtZero: true, grid: { color: "#f0f0f0" }, ticks: { font: { size: 10 }, callback: v => v + "%" } },
+                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12 }, maxRotation: 45 } },
+                y: { stacked: true, beginAtZero: true, max: 100, grid: { color: "#f0f0f0" }, ticks: { font: { size: 12 }, callback: v => v + "%" } },
             },
         },
     });
@@ -326,12 +341,12 @@ function mobChartOpts(yTickCb, tooltipCb) {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-            legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 11 } } },
+            legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 13 } } },
             tooltip: { callbacks: { label: tooltipCb } },
         },
         scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
-            y: { grid: { color: "#f0f0f0" }, ticks: { font: { size: 10 }, callback: yTickCb } },
+            x: { grid: { display: false }, ticks: { font: { size: 12 }, maxRotation: 45 } },
+            y: { grid: { color: "#f0f0f0" }, ticks: { font: { size: 12 }, callback: yTickCb } },
         },
     };
 }

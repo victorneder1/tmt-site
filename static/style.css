@@ -105,46 +105,37 @@ header h1 {
     color: rgba(255, 255, 255, 0.6);
 }
 
-/* Tabs - dark navy bar (sub-sections) */
+/* Tabs */
 .tabs {
     display: flex;
     gap: 0;
     padding: 0 28px;
-    background: #0a2a6e;
+    background: #ffffff;
+    border-bottom: 1px solid #d9e0ea;
 }
 
 .tab {
-    padding: 10px 28px;
+    padding: 13px 24px;
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.45);
+    color: #6b7b96;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: color 0.2s, border-color 0.2s;
+    font-family: 'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .tab:hover {
-    color: rgba(255, 255, 255, 0.85);
+    color: #001F62;
 }
 
 .tab.active {
-    color: #ffffff;
+    color: #195AB4;
     border-bottom-color: #195AB4;
 }
 
-/* Sub-tabs (third level, e.g. Software / IT Services) */
-.sub-tabs {
-    background: #132f6e;
-}
-
-.sub-tabs .tab {
-    font-size: 13px;
-    font-weight: 500;
-    padding: 8px 24px;
-    border-bottom-width: 2px;
-}
 
 /* Main */
 main {
@@ -482,18 +473,6 @@ tfoot td.col-company {
     display: block;
 }
 
-/* Sub-tabs bar */
-.sub-tabs {
-    background: #0c2d72;
-    padding-left: 24px;
-}
-
-.sub-tabs .tab {
-    font-size: 13px;
-    font-weight: 500;
-    padding: 8px 24px;
-    border-bottom-width: 2px;
-}
 
 /* ══════════════════════════════════════════════════════════════════════════
    PAIR TRADES STYLES
@@ -892,5 +871,54 @@ tfoot td.col-company {
         flex-direction: column;
         gap: 14px;
         padding: 16px;
+    }
+}
+
+@media (max-width: 520px) {
+    header {
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        gap: 6px;
+    }
+
+    .header-left {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .header-logo {
+        height: 24px;
+    }
+
+    .header-nav {
+        flex-wrap: wrap;
+        gap: 3px;
+    }
+
+    .header-nav-link {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .header-right {
+        flex-basis: 100%;
+        font-size: 11px;
+    }
+
+    .tabs {
+        padding: 0 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab {
+        padding: 8px 12px;
+        font-size: 12px;
+        white-space: nowrap;
+        min-height: 44px;
+    }
+
+    .pair-details {
+        grid-template-columns: 1fr;
     }
 }

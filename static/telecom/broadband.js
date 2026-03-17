@@ -26,6 +26,8 @@ const OPERATOR_COLORS = {
 
 const TABLE_MAX_MONTHS = 12;
 
+Chart.defaults.font.family = "'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif";
+
 let bbCharts = {};
 
 let bbAllMonths = [];
@@ -295,30 +297,42 @@ function renderChartGroup(prefix, months, operators, opMonthMap, allMap) {
         ),
     });
 
-    // Market Share (individual lines)
+    // Market Share (stacked bar)
     const shareKey = prefix + "-share";
     if (bbCharts[shareKey]) bbCharts[shareKey].destroy();
     bbCharts[shareKey] = new Chart(document.getElementById(shareKey), {
-        type: "line",
+        type: "bar",
+        plugins: [ChartDataLabels],
         data: {
             labels: labels,
             datasets: ops.map(op => ({
                 label: op,
                 data: months.map(m => {
                     const total = marketTotals[m];
-                    return total > 0 ? ((opMonthMap[op][m] || 0) / total * 100) : 0;
+                    return total > 0 ? +((opMonthMap[op][m] || 0) / total * 100).toFixed(1) : 0;
                 }),
+                backgroundColor: OPERATOR_COLORS[op] + "CC",
                 borderColor: OPERATOR_COLORS[op],
-                backgroundColor: OPERATOR_COLORS[op] + "20",
-                borderWidth: 2, fill: false, tension: 0.3,
-                pointRadius: months.length > 24 ? 0 : 3, pointHoverRadius: 5,
+                borderWidth: 1,
             })),
         },
         options: {
-            ...chartOpts(v => v.toFixed(0) + "%", ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`),
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 13 } } },
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } },
+                datalabels: {
+                    anchor: "center",
+                    align: "center",
+                    color: "#fff",
+                    font: { size: 12, weight: "600" },
+                    formatter: (value) => value >= 5 ? value.toFixed(1) + "%" : "",
+                },
+            },
             scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
-                y: { beginAtZero: true, grid: { color: "#f0f0f0" }, ticks: { font: { size: 10 }, callback: v => v + "%" } },
+                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12 }, maxRotation: 45 } },
+                y: { stacked: true, beginAtZero: true, grid: { color: "#f0f0f0" }, ticks: { font: { size: 12 }, callback: v => v + "%" } },
             },
         },
     });
@@ -329,12 +343,12 @@ function chartOpts(yTickCb, tooltipCb) {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-            legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 11 } } },
+            legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 13 } } },
             tooltip: { callbacks: { label: tooltipCb } },
         },
         scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
-            y: { grid: { color: "#f0f0f0" }, ticks: { font: { size: 10 }, callback: yTickCb } },
+            x: { grid: { display: false }, ticks: { font: { size: 12 }, maxRotation: 45 } },
+            y: { grid: { color: "#f0f0f0" }, ticks: { font: { size: 12 }, callback: yTickCb } },
         },
     };
 }
