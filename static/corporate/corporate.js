@@ -1,4 +1,4 @@
-/* Buyback & Insider Tracker — corporate.js */
+/* Insider Tracker — corporate.js */
 
 // ── State ──────────────────────────────────────────────────────────────────
 let cache = { buybacks_executed: [], insiders_buying: [], insiders_selling: [] };
