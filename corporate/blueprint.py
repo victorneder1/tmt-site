@@ -69,6 +69,7 @@ def create_tracker_bp() -> Blueprint:
             "analytics": build_analytics_tables(movements, mcaps),
             "last_success_at": snapshot.get("last_success_at"),
             "last_error": snapshot.get("last_error"),
+            "last_live_error": snapshot.get("last_live_error"),
             "documents_total": snapshot.get("documents_total", 0),
             "movements_total": snapshot.get("movements_total", 0),
         })
