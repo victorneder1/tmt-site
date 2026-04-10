@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from .config import AppConfig, CompanyFilter
-from .cvm_client import download_document_pdf, fetch_documents, fetch_live_documents
+from .cvm_client import download_document_pdf, fetch_documents
 from .document_store import DocumentStore
 from .exporter import export_workbook
 from .notifier import CompositeNotifier
