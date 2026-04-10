@@ -178,6 +178,14 @@ def api_upload_corporate_db():
     f = request.files["file"]
     db_path = os.path.join(DATA_DIR, "corporate_bz.db")
     f.save(db_path)
+    # Reload in-memory movements so analytics reflect the new DB immediately,
+    # without waiting for the next _refresh_once cycle to find changed documents.
+    mon = app.config.get("cvm_monitor")
+    if mon:
+        with mon.lock:
+            mon.movements = mon.document_store.get_movements()
+            mon.history_documents = mon.document_store.get_history_documents()
+            mon.recent_documents = mon.document_store.get_recent_documents(mon.config.recent_limit)
     return jsonify({"ok": True, "path": db_path})
 
 

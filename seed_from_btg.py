@@ -32,7 +32,7 @@ def main():
     src.row_factory = sqlite3.Row
 
     # Garantir que as tabelas existem no destino
-    schema = src.execute("SELECT sql FROM sqlite_master WHERE type='table'").fetchall()
+    schema = src.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()
     for row in schema:
         if row[0]:
             dst.execute(row[0].replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
