@@ -168,6 +168,19 @@ def api_pairs():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/upload-corporate-db", methods=["POST"])
+def api_upload_corporate_db():
+    key = request.headers.get("X-Upload-Key") or request.args.get("key")
+    if key != UPLOAD_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
+    if "file" not in request.files:
+        return jsonify({"error": "No file"}), 400
+    f = request.files["file"]
+    db_path = os.path.join(DATA_DIR, "corporate_bz.db")
+    f.save(db_path)
+    return jsonify({"ok": True, "path": db_path})
+
+
 @app.route("/api/pairs/export")
 def api_pairs_export():
     key = request.headers.get("X-Upload-Key") or request.args.get("key")
