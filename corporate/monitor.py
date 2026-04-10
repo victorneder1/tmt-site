@@ -3,19 +3,17 @@ from __future__ import annotations
 import threading
 import unicodedata
 from dataclasses import asdict
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any
 
 from .config import AppConfig, CompanyFilter
-from .cvm_client import download_document_pdf, fetch_documents, fetch_live_documents
+from .cvm_client import download_document_pdf, fetch_live_documents
 from .document_store import DocumentStore
 from .exporter import export_workbook
 from .notifier import CompositeNotifier
 from .pdf_parser import ParseError, parse_cvm_358_pdf
 from .storage import SeenDocumentsStore
 
-
-LIVE_LOOKBACK_DAYS = 120
 
 
 class CVMMonitor:
@@ -109,22 +107,19 @@ class CVMMonitor:
             self.last_check_at = timestamp
 
         try:
-            years = self._years_to_query()
-            # Fetch from yearly zip files
-            raw_documents = fetch_documents(years)
-            # Fetch live documents (recent filings) separately to capture errors
+            # Fetch directly from ENET per company (full history, no zip download)
             try:
-                live_docs = fetch_live_documents(
+                raw_documents = fetch_live_documents(
                     self.config.companies,
-                    self._live_start_date(),
+                    self.config.history_start_date,
                     date.today(),
                 )
-                raw_documents.extend(live_docs)
                 with self.lock:
                     self.last_live_error = None
             except Exception as live_exc:  # noqa: BLE001
                 with self.lock:
                     self.last_live_error = str(live_exc)
+                raw_documents = []
             filtered = filter_documents(
                 raw_documents,
                 self.config.companies,
@@ -292,13 +287,8 @@ class CVMMonitor:
         merged["summary"] = existing.get("summary", {})
         self.document_store.upsert_document(merged)
 
-    def _years_to_query(self) -> list[int]:
-        now = datetime.now()
-        return list(range(self.config.history_start_date.year, now.year + 1))
-
     def _live_start_date(self) -> date:
-        candidate = date.today() - timedelta(days=LIVE_LOOKBACK_DAYS)
-        return max(self.config.history_start_date, candidate)
+        return self.config.history_start_date
 
 
 def filter_documents(
