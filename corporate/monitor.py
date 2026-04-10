@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from .config import AppConfig, CompanyFilter
-from .cvm_client import download_document_pdf, fetch_documents
+from .cvm_client import download_document_pdf, fetch_documents, fetch_live_documents
 from .document_store import DocumentStore
 from .exporter import export_workbook
 from .notifier import CompositeNotifier
@@ -33,6 +33,7 @@ class CVMMonitor:
         self.last_check_at: str | None = None
         self.last_success_at: str | None = None
         self.last_error: str | None = None
+        self.last_live_error: str | None = None
         self.last_export_at: str | None = None
         self.last_export_path: str | None = None
         self.new_documents: list[dict[str, Any]] = []
@@ -67,6 +68,7 @@ class CVMMonitor:
                 "last_check_at": self.last_check_at,
                 "last_success_at": self.last_success_at,
                 "last_error": self.last_error,
+                "last_live_error": self.last_live_error,
                 "last_export_at": self.last_export_at,
                 "new_documents": list(self.new_documents),
                 "recent_documents": list(self.recent_documents),
@@ -108,12 +110,21 @@ class CVMMonitor:
 
         try:
             years = self._years_to_query()
-            raw_documents = fetch_documents(
-                years,
-                self.config.companies,
-                self._live_start_date(),
-                date.today(),
-            )
+            # Fetch from yearly zip files
+            raw_documents = fetch_documents(years)
+            # Fetch live documents (recent filings) separately to capture errors
+            try:
+                live_docs = fetch_live_documents(
+                    self.config.companies,
+                    self._live_start_date(),
+                    date.today(),
+                )
+                raw_documents.extend(live_docs)
+                with self.lock:
+                    self.last_live_error = None
+            except Exception as live_exc:  # noqa: BLE001
+                with self.lock:
+                    self.last_live_error = str(live_exc)
             filtered = filter_documents(
                 raw_documents,
                 self.config.companies,
