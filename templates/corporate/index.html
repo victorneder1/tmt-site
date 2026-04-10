@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTG TMT — Insider Tracker</title>
+    <title>BTG Pactual — TMT Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/corporate/style.css">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-GCQKDDFYX7"></script>
@@ -15,36 +16,46 @@
         <a href="https://www.btgpactual.com/research/" target="_blank">
             <img src="/static/btg-logo.png" alt="BTG Pactual" class="header-logo">
         </a>
-        <nav class="header-nav">
-            <a href="/global" class="header-nav-link">Global AIM</a>
-            <a href="/telecom" class="header-nav-link">Telecom</a>
-            <a href="/tracker" class="header-nav-link active">Insider Tracker</a>
-        </nav>
+        <div class="header-title-wrap">
+            <h1 class="header-title">TMT Dashboard</h1>
+        </div>
     </div>
     <div class="header-right">
         <span id="lastUpdated" class="header-subtitle"></span>
     </div>
 </header>
 
-<!-- Tab bar -->
-<div class="tr-tab-bar">
-    <button class="tr-tab active" id="tab-buybacks" onclick="switchTab('buybacks')">Buybacks</button>
-    <button class="tr-tab" id="tab-insiders" onclick="switchTab('insiders')">Insiders</button>
+<nav class="site-top-tabs" aria-label="Primary">
+    <a href="/global" class="site-top-tab">Global AIM</a>
+    <a href="/telecom" class="site-top-tab">Telecom</a>
+    <a href="/tracker" class="site-top-tab active">Insider Tracker</a>
+</nav>
+
+<!-- Initial sync banner (only shown on first run, DB empty) -->
+<div id="syncBanner" style="display:none" class="tr-sync-banner">
+    <span class="tr-sync-spinner"></span>
+    Initial sync in progress — downloading CVM documents for the first time. This may take a few minutes and happens only once.
 </div>
+
+<!-- Main tabs -->
+<nav class="tr-tab-bar">
+    <button class="tr-tab main-tab active" id="tab-buybacks" onclick="switchTab('buybacks')">Buybacks</button>
+    <button class="tr-tab main-tab" id="tab-insiders" onclick="switchTab('insiders')">Insiders</button>
+</nav>
 
 <!-- Filter bar -->
 <div class="tr-filter-bar">
     <span class="tr-filter-label">Filters</span>
     <div class="tr-filter-controls">
-        <select id="sectorFilter" class="tr-sel" onchange="onFilterChange()">
+        <select id="sectorFilter" class="tr-sel" onchange="onSectorChange()">
             <option value="all">All Sectors</option>
-            <option value="Software">Software</option>
-            <option value="Telecom">Telecom</option>
-            <option value="Hardware">Hardware</option>
         </select>
         <select id="companyFilter" class="tr-sel" onchange="onFilterChange()">
             <option value="all">All Companies</option>
         </select>
+        <div class="search-box tr-filter-search">
+            <input type="text" id="tickerSearch" placeholder="Search company or ticker..." oninput="onTickerSearchInput(event)">
+        </div>
         <select id="analyticsYearFilter" class="tr-sel tr-sel-date" onchange="onYearChange()">
             <option value="">Year</option>
         </select>
@@ -53,12 +64,27 @@
         </select>
     </div>
     <span id="filterCount" class="tr-filter-count"></span>
+    <button id="resetFiltersBtn" class="tr-reset-btn" onclick="resetFilters()" style="display:none">Reset Filters</button>
+</div>
+
+<!-- Hint bar -->
+<div class="tr-hint-bar">
+    Use the <strong>Sector</strong> or <strong>Company</strong> filters above to drill down.
+    All monetary values are in <strong>BRL</strong>.
 </div>
 
 <main class="tr-main">
 
 <!-- ── BUYBACKS TAB ── -->
 <div class="tr-content active" id="content-buybacks">
+
+    <!-- Buyback sort toggle -->
+    <div class="tr-sort-toggle">
+        <span class="tr-filter-label" style="margin-right:4px">Sort by</span>
+        <button class="tr-toggle active" id="sortByMcap" onclick="setBbSort('mcap')">By % Mkt Cap</button>
+        <button class="tr-toggle" id="sortByVolume" onclick="setBbSort('volume')">By Amount (R$)</button>
+    </div>
+
     <div id="bbMonthlyPeriodLabel"></div>
     <div id="bbMonthlyBlock" class="tr-g2 tr-mt14"></div>
 
@@ -73,11 +99,7 @@
 
     <div id="bbHistoryPeriodLabel"></div>
     <div class="tr-rolling-controls">
-        <span class="tr-filter-label">Company</span>
-        <select id="bbHistoryCompany" class="tr-sel tr-sel-cta" onchange="renderAll(cache)">
-            <option value="">Select a company</option>
-        </select>
-        <span class="tr-filter-label" style="margin-left:10px">Period</span>
+        <span class="tr-filter-label">Period</span>
         <select id="bbHistoryFrom" class="tr-sel" onchange="renderAll(cache)"></select>
         <span class="tr-period-arrow">→</span>
         <select id="bbHistoryTo" class="tr-sel" onchange="renderAll(cache)"></select>
@@ -87,6 +109,13 @@
 
 <!-- ── INSIDERS TAB ── -->
 <div class="tr-content" id="content-insiders">
+    <!-- Insider sort toggle -->
+    <div class="tr-sort-toggle">
+        <span class="tr-filter-label" style="margin-right:4px">Sort by</span>
+        <button class="tr-toggle active" id="inSortByPct" onclick="setInSort('pct')">By % Ownership</button>
+        <button class="tr-toggle" id="inSortByVolume" onclick="setInSort('volume')">By Amount</button>
+    </div>
+
     <div id="inMonthlyPeriodLabel"></div>
     <div id="inMonthlyBlock" class="tr-g3 tr-mt14"></div>
 
@@ -97,6 +126,17 @@
         <span class="tr-period-arrow">→</span>
         <select id="insidersRollingTo" class="tr-sel" onchange="renderAll(cache)"></select>
     </div>
+    <div id="inAccumBlock" class="tr-g3 tr-mt14"></div>
+
+    <div id="inHistoryPeriodLabel"></div>
+    <div class="tr-rolling-controls tr-mt14">
+        <span class="tr-filter-label">Period</span>
+        <select id="inHistoryFrom" class="tr-sel" onchange="renderAll(cache)"></select>
+        <span class="tr-period-arrow">→</span>
+        <select id="inHistoryTo" class="tr-sel" onchange="renderAll(cache)"></select>
+    </div>
+    <div id="inHistoryBlock" class="tr-mt14"></div>
+
     <div id="inRollingBlock" class="tr-glw tr-mt14"></div>
 </div>
 

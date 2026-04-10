@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTG TMT — Global AIM</title>
+    <title>BTG Pactual — TMT Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <!-- Google Analytics -->
@@ -19,16 +20,20 @@
     <header>
         <div class="header-left">
             <a href="https://www.btgpactual.com/research/" target="_blank"><img src="/static/btg-logo.png" alt="BTG Pactual" class="header-logo"></a>
-            <nav class="header-nav">
-                <a href="/global" class="header-nav-link active">Global AIM</a>
-                <a href="/telecom" class="header-nav-link">Telecom</a>
-                <a href="/tracker" class="header-nav-link">Insider Tracker</a>
-            </nav>
+            <div class="header-title-wrap">
+                <h1 class="header-title">TMT Dashboard</h1>
+            </div>
         </div>
         <div class="header-right">
             <span id="last-updated"></span>
         </div>
     </header>
+
+    <nav class="site-top-tabs" aria-label="Primary">
+        <a href="/global" class="site-top-tab active">Global AIM</a>
+        <a href="/telecom" class="site-top-tab">Telecom</a>
+        <a href="/tracker" class="site-top-tab">Insider Tracker</a>
+    </nav>
 
     <!-- Main tabs -->
     <nav class="tabs main-tabs">

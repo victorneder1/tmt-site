@@ -254,6 +254,28 @@ function renderTable(tableId, data, groups, sortState, searchQuery) {
     tfoot.appendChild(medianRow);
 }
 
+function renderTableMessage(tableId, message) {
+    const table = document.getElementById(tableId);
+    const thead = table.querySelector("thead");
+    const tbody = table.querySelector("tbody");
+    const tfoot = table.querySelector("tfoot");
+
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+    tfoot.innerHTML = "";
+
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 1;
+    td.textContent = message;
+    td.style.padding = "16px";
+    td.style.textAlign = "left";
+    td.style.color = "#6b7b96";
+    td.style.fontStyle = "italic";
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+}
+
 // Set default sort to first numeric column if not already set
 function ensureDefaultSort(sortState, groups) {
     if (sortState.key) {
@@ -268,31 +290,47 @@ function ensureDefaultSort(sortState, groups) {
 
 // Fetch & render
 async function loadSoftware() {
-    const res = await fetch(`/api/software?view=${currentView}`);
-    const result = await res.json();
-    softwareData = result.data;
-    softwareGroups = buildGroups(result.columns);
-    ensureDefaultSort(softwareSort, softwareGroups);
-    const query = document.getElementById("software-search").value;
-    renderTable("software-table", softwareData, softwareGroups, softwareSort, query);
+    try {
+        const res = await fetch(`/api/software?view=${currentView}`);
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || "Software data unavailable");
+        softwareData = result.data;
+        softwareGroups = buildGroups(result.columns);
+        ensureDefaultSort(softwareSort, softwareGroups);
+        const query = document.getElementById("software-search").value;
+        renderTable("software-table", softwareData, softwareGroups, softwareSort, query);
+    } catch (err) {
+        console.error("Failed to load software data:", err);
+        renderTableMessage("software-table", "Software comparables are unavailable locally right now.");
+    }
 }
 
 async function loadITServices() {
-    const res = await fetch("/api/itservices");
-    const result = await res.json();
-    itservicesData = result.data;
-    itservicesGroups = buildGroups(result.columns);
-    ensureDefaultSort(itservicesSort, itservicesGroups);
-    const query = document.getElementById("itservices-search").value;
-    renderTable("itservices-table", itservicesData, itservicesGroups, itservicesSort, query);
+    try {
+        const res = await fetch("/api/itservices");
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || "IT Services data unavailable");
+        itservicesData = result.data;
+        itservicesGroups = buildGroups(result.columns);
+        ensureDefaultSort(itservicesSort, itservicesGroups);
+        const query = document.getElementById("itservices-search").value;
+        renderTable("itservices-table", itservicesData, itservicesGroups, itservicesSort, query);
+    } catch (err) {
+        console.error("Failed to load IT Services data:", err);
+        renderTableMessage("itservices-table", "IT Services comparables are unavailable locally right now.");
+    }
 }
 
 async function loadLastUpdated() {
-    const res = await fetch("/api/last-updated");
-    const data = await res.json();
-    if (data.last_updated) {
-        document.getElementById("last-updated").textContent =
-            `Last Update: ${data.last_updated}`;
+    try {
+        const res = await fetch("/api/last-updated");
+        const data = await res.json();
+        if (data.last_updated) {
+            document.getElementById("last-updated").textContent =
+                `Last Update: ${data.last_updated}`;
+        }
+    } catch (err) {
+        console.error("Failed to load last updated timestamp:", err);
     }
 }
 

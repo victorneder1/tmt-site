@@ -279,7 +279,7 @@ class DocumentStore:
         with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT m.*, d.reference_date, d.delivery_date, d.company_name
+                SELECT m.*, d.reference_date, d.delivery_date, d.company_name, d.cvm_code
                 FROM movements m
                 INNER JOIN documents d ON d.protocol = m.protocol
                 ORDER BY d.reference_date DESC, d.delivery_date DESC, m.document_kind ASC, m.id ASC

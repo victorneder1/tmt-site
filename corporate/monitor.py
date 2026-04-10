@@ -6,7 +6,6 @@ from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from .analytics import build_analytics_tables
 from .config import AppConfig, CompanyFilter
 from .cvm_client import download_document_pdf, fetch_documents
 from .document_store import DocumentStore
@@ -41,6 +40,7 @@ class CVMMonitor:
             self.config.recent_limit
         )
         self.history_documents: list[dict[str, Any]] = self.document_store.get_history_documents()
+        # Load movements from DB on startup — data available immediately if DB is populated
         self.movements: list[dict[str, Any]] = self.document_store.get_movements()
 
     def start(self) -> None:
@@ -72,7 +72,6 @@ class CVMMonitor:
                 "recent_documents": list(self.recent_documents),
                 "history_documents": list(self.history_documents),
                 "movements": list(self.movements),
-                "analytics": build_analytics_tables(self.movements),
                 "tracked_protocols": len(self.seen_protocols),
                 "teams_enabled": any(
                     type(notifier).__name__ == "TeamsNotifier" and notifier.is_enabled
@@ -90,7 +89,17 @@ class CVMMonitor:
     def _run_loop(self) -> None:
         while not self.stop_event.is_set():
             self._refresh_once()
-            self.stop_event.wait(self.config.poll_interval_seconds)
+            self.stop_event.wait(self._next_interval())
+
+    def _next_interval(self) -> int:
+        """5-min polling on days 5–15 (CVM filing window), daily otherwise."""
+        # Calendar days start at 1; the requested "day 0-12" window maps to days 1-12.
+        day = datetime.now().day
+        if day == 10:
+            return 1800
+        if day <= 12:
+            return 3600
+        return 86400
 
     def _refresh_once(self) -> None:
         timestamp = datetime.now(UTC).isoformat()
@@ -114,6 +123,8 @@ class CVMMonitor:
 
             processed_new_documents: list[dict[str, Any]] = []
             changed = False
+            changed_count = 0
+            CHECKPOINT_EVERY = 30  # update in-memory movements every N ingested docs
             for document in filtered:
                 protocol = document["Protocolo_Entrega"]
                 existing_protocol = self.document_store.find_matching_protocol(
@@ -135,12 +146,20 @@ class CVMMonitor:
                     if existing_protocol in self.alerted_protocols:
                         self.alerted_protocols.add(protocol)
                     changed = True
+                    changed_count += 1
                     continue
 
                 processed = self._ingest_document(document)
                 processed_new_documents.append(processed)
                 self.seen_protocols.add(protocol)
                 changed = True
+                changed_count += 1
+
+                # Checkpoint: expose partial data to the API while the loop is still running
+                if changed_count % CHECKPOINT_EVERY == 0:
+                    with self.lock:
+                        self.movements = self.document_store.get_movements()
+                        self.last_success_at = timestamp
 
             if changed or self.bootstrap_mode:
                 self.history_documents = self.document_store.get_history_documents()

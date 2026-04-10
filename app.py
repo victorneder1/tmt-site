@@ -1,10 +1,11 @@
+import json
 import os
 from functools import wraps
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from werkzeug.utils import secure_filename
 
-from data_parser import parse_software_comps, parse_itservices_comps, get_last_updated
+from data_parser import parse_software_comps, parse_itservices_comps
 import pairs_service
 import process_data_telecom
 from telecom import telecom_bp
@@ -16,10 +17,15 @@ app.register_blueprint(create_tracker_bp())
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 SOFTWARE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_Software_site.xlsx")
 ITSERVICES_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_ITServices_site.xlsx")
+SOFTWARE_LEGACY_FILE = os.path.join(BASE_DIR, "Screening_VisibleAlpha_Software_site.xlsx")
+ITSERVICES_LEGACY_FILE = os.path.join(BASE_DIR, "Screening_VisibleAlpha_ITServices_site.xlsx")
+SOFTWARE_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_Software_site.json")
+ITSERVICES_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_ITServices_site.json")
+LAST_UPDATED_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_last_updated.json")
 
 # Upload key for authentication — change this to a strong secret before deploying
 UPLOAD_KEY = os.environ.get("UPLOAD_KEY", "change-me-before-deploy")
@@ -28,6 +34,94 @@ ALLOWED_FILES = {
     "software": os.path.basename(SOFTWARE_FILE),
     "itservices": os.path.basename(ITSERVICES_FILE),
 }
+
+
+def _load_json_file(path):
+    with open(path, encoding="utf-8-sig") as f:
+        return json.load(f)
+
+
+def _write_json_file(path, payload):
+    temp_path = f"{path}.tmp"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False)
+    os.replace(temp_path, path)
+
+
+def _pick_latest_existing_path(*paths):
+    candidates = [p for p in paths if p and os.path.exists(p)]
+    if not candidates:
+        return None
+    return max(candidates, key=os.path.getmtime)
+
+
+def _load_software_payload():
+    source_path = _pick_latest_existing_path(SOFTWARE_FILE, SOFTWARE_LEGACY_FILE)
+    if source_path:
+        try:
+            payload = parse_software_comps(source_path)
+            _write_json_file(SOFTWARE_CACHE_FILE, payload)
+            return payload
+        except Exception:
+            if os.path.exists(SOFTWARE_CACHE_FILE):
+                return _load_json_file(SOFTWARE_CACHE_FILE)
+            raise
+    if os.path.exists(SOFTWARE_CACHE_FILE):
+        return _load_json_file(SOFTWARE_CACHE_FILE)
+    raise FileNotFoundError(
+        f"Software screening data not found. Expected '{SOFTWARE_FILE}' "
+        f"or legacy path '{SOFTWARE_LEGACY_FILE}' "
+        f"or fallback cache '{SOFTWARE_CACHE_FILE}'."
+    )
+
+
+def _load_itservices_payload():
+    source_path = _pick_latest_existing_path(ITSERVICES_FILE, ITSERVICES_LEGACY_FILE)
+    if source_path:
+        try:
+            payload = parse_itservices_comps(source_path)
+            _write_json_file(ITSERVICES_CACHE_FILE, payload)
+            return payload
+        except Exception:
+            if os.path.exists(ITSERVICES_CACHE_FILE):
+                return _load_json_file(ITSERVICES_CACHE_FILE)
+            raise
+    if os.path.exists(ITSERVICES_CACHE_FILE):
+        return _load_json_file(ITSERVICES_CACHE_FILE)
+    raise FileNotFoundError(
+        f"IT Services screening data not found. Expected '{ITSERVICES_FILE}' "
+        f"or legacy path '{ITSERVICES_LEGACY_FILE}' "
+        f"or fallback cache '{ITSERVICES_CACHE_FILE}'."
+    )
+
+
+def _load_cached_last_updated():
+    if os.path.exists(LAST_UPDATED_CACHE_FILE):
+        payload = _load_json_file(LAST_UPDATED_CACHE_FILE)
+        if isinstance(payload, dict):
+            return payload.get("last_updated")
+
+    cache_candidates = [p for p in (SOFTWARE_CACHE_FILE, ITSERVICES_CACHE_FILE) if os.path.exists(p)]
+    if cache_candidates:
+        latest = max(os.path.getmtime(p) for p in cache_candidates)
+        return datetime.fromtimestamp(latest).strftime("%Y-%m-%d")
+
+    return None
+
+
+def _resolve_last_updated():
+    source_path = _pick_latest_existing_path(
+        SOFTWARE_FILE,
+        SOFTWARE_LEGACY_FILE,
+        ITSERVICES_FILE,
+        ITSERVICES_LEGACY_FILE,
+    )
+    if source_path:
+        ts = datetime.fromtimestamp(os.path.getmtime(source_path)).strftime("%Y-%m-%d")
+        _write_json_file(LAST_UPDATED_CACHE_FILE, {"last_updated": ts})
+        return ts
+
+    return _load_cached_last_updated()
 
 
 @app.route("/")
@@ -39,7 +133,10 @@ def index():
 @app.route("/api/software")
 def api_software():
     view = request.args.get("view", "gaap")
-    data = parse_software_comps(SOFTWARE_FILE)
+    try:
+        data = _load_software_payload()
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 503
     if view == "nongaap":
         return jsonify(data["nongaap"])
     return jsonify(data["gaap"])
@@ -47,13 +144,16 @@ def api_software():
 
 @app.route("/api/itservices")
 def api_itservices():
-    data = parse_itservices_comps(ITSERVICES_FILE)
+    try:
+        data = _load_itservices_payload()
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 503
     return jsonify(data)
 
 
 @app.route("/api/last-updated")
 def api_last_updated():
-    ts = get_last_updated(SOFTWARE_FILE, ITSERVICES_FILE)
+    ts = _resolve_last_updated()
     return jsonify({"last_updated": ts})
 
 
@@ -66,6 +166,17 @@ def api_pairs():
         return jsonify(pairs)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/pairs/export")
+def api_pairs_export():
+    key = request.headers.get("X-Upload-Key") or request.args.get("key")
+    if key != UPLOAD_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
+    conn = pairs_service._get_db()
+    rows = conn.execute("SELECT * FROM pairs ORDER BY sort_order ASC, id ASC").fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
 
 
 @app.route("/api/pairs/<int:pair_id>/history")
