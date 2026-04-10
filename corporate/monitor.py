@@ -3,11 +3,11 @@ from __future__ import annotations
 import threading
 import unicodedata
 from dataclasses import asdict
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from .config import AppConfig, CompanyFilter
-from .cvm_client import download_document_pdf, fetch_live_documents
+from .cvm_client import download_document_pdf, fetch_documents, fetch_live_documents
 from .document_store import DocumentStore
 from .exporter import export_workbook
 from .notifier import CompositeNotifier
@@ -107,11 +107,13 @@ class CVMMonitor:
             self.last_check_at = timestamp
 
         try:
-            # Fetch directly from ENET per company (full history, no zip download)
+            years = self._years_to_query()
+            # Primary: yearly zips; secondary: ENET for last 120 days (same as btg10sim)
             try:
-                raw_documents = fetch_live_documents(
+                raw_documents = fetch_documents(
+                    years,
                     self.config.companies,
-                    self.config.history_start_date,
+                    self._live_start_date(),
                     date.today(),
                 )
                 with self.lock:
@@ -119,7 +121,7 @@ class CVMMonitor:
             except Exception as live_exc:  # noqa: BLE001
                 with self.lock:
                     self.last_live_error = str(live_exc)
-                raw_documents = []
+                raw_documents = fetch_documents(years)
             filtered = filter_documents(
                 raw_documents,
                 self.config.companies,
@@ -287,8 +289,13 @@ class CVMMonitor:
         merged["summary"] = existing.get("summary", {})
         self.document_store.upsert_document(merged)
 
+    def _years_to_query(self) -> list[int]:
+        now = datetime.now()
+        return list(range(self.config.history_start_date.year, now.year + 1))
+
     def _live_start_date(self) -> date:
-        return self.config.history_start_date
+        candidate = date.today() - timedelta(days=120)
+        return max(self.config.history_start_date, candidate)
 
 
 def filter_documents(
