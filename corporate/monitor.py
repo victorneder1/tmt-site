@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from .config import AppConfig, CompanyFilter
-from .cvm_client import download_document_pdf, fetch_documents
+from .cvm_client import download_document_pdf, fetch_documents, fetch_live_documents
 from .document_store import DocumentStore
 from .exporter import export_workbook
 from .notifier import CompositeNotifier
@@ -107,13 +107,12 @@ class CVMMonitor:
             self.last_check_at = timestamp
 
         try:
-            years = self._years_to_query()
-            # Primary: yearly zips; secondary: ENET for last 120 days (same as btg10sim)
+            # ENET only — fetches exactly the 9 configured companies, no full zip download.
+            # Falls back to yearly zip if ENET is unavailable.
             try:
-                raw_documents = fetch_documents(
-                    years,
+                raw_documents = fetch_live_documents(
                     self.config.companies,
-                    self._live_start_date(),
+                    self.config.history_start_date,
                     date.today(),
                 )
                 with self.lock:
@@ -121,7 +120,7 @@ class CVMMonitor:
             except Exception as live_exc:  # noqa: BLE001
                 with self.lock:
                     self.last_live_error = str(live_exc)
-                raw_documents = fetch_documents(years)
+                raw_documents = fetch_documents(self._years_to_query())
             filtered = filter_documents(
                 raw_documents,
                 self.config.companies,
