@@ -79,7 +79,8 @@ def parse_section(section_text: str, document: dict[str, Any]) -> list[dict[str,
     holder_name = extract_match(condensed, r"Nome:\s*(.+?)\s+CPF/CNPJ:")
     holder_role = extract_match(condensed, r"Qualificação:\s*(.+?)\s+Saldo Inicial")
     holder_group = extract_selected_group(condensed) if document_kind == "consolidada" else ""
-    balance = extract_balances(condensed)
+    # Pass raw section_text (preserves newlines) so extract_balances can anchor on line boundaries.
+    balance = extract_balances(section_text)
     has_no_operations = bool(re.search(r"\(\s*X\s*\)\s*não foram realizadas operações", condensed, re.I))
     operation_rows = parse_operations(condensed)
 
@@ -105,11 +106,25 @@ def parse_section(section_text: str, document: dict[str, Any]) -> list[dict[str,
             }
         ]
 
+    initial_quantities: dict[str, float] = balance.get("initial_quantities") or {}
+
     movements: list[dict[str, Any]] = []
     for row in operation_rows:
         holder_name_or_company = holder_name or company_name or company_alias
         holder_role_or_group = holder_role or holder_group
         is_buyback = int(is_buyback_holder(document_kind, company_name, holder_name, holder_role, row))
+
+        # Match operation to its asset-specific Saldo Inicial.
+        # e.g. "Ações PN" → looks up "acoes pn" in initial_quantities.
+        # Falls back to the first-listed asset's quantity if no specific match.
+        op_asset_key = _balance_key(row["asset"])
+        matched_initial = (
+            initial_quantities.get(op_asset_key)
+            if op_asset_key and initial_quantities
+            else None
+        )
+        initial_qty = matched_initial if matched_initial is not None else balance.get("initial_quantity")
+
         movements.append(
             {
                 "protocol": document["Protocolo_Entrega"],
@@ -126,7 +141,7 @@ def parse_section(section_text: str, document: dict[str, Any]) -> list[dict[str,
                 "quantity": row["quantity"],
                 "price_avg": row["price_avg"],
                 "financial_volume": row["financial_volume"],
-                "initial_quantity": balance.get("initial_quantity"),
+                "initial_quantity": initial_qty,
                 "final_quantity": balance.get("final_quantity"),
                 "details": row["details"],
                 "no_operations": row["no_operations"],
@@ -167,22 +182,118 @@ def is_buyback_holder(
     return bool(company_match or role_match)
 
 
+def _balance_key(asset: str) -> str:
+    """Normalise an asset name to a lookup key for matching operations to balances.
+
+    Uses the first two whitespace-separated tokens after accent-stripping and
+    lower-casing, e.g. "Ações PN" → "acoes pn", "Units ON" → "units on".
+    """
+    import unicodedata as _ud
+    stripped = "".join(
+        ch for ch in _ud.normalize("NFKD", asset)
+        if not _ud.combining(ch)
+    ).casefold()
+    tokens = stripped.split()
+    return " ".join(tokens[:2]) if len(tokens) >= 2 else (tokens[0] if tokens else "")
+
+
 def extract_balances(text: str) -> dict[str, Any]:
-    initial_match = re.search(
-        r"Saldo Inicial.*?Valor Mobiliário Derivativo Características dos Títulos Quantidade\s+(.+?)\s+([0-9\.\,]+)\s+Movimentações no Mês",
-        text,
-        re.S,
-    )
-    final_match = re.search(
-        r"Saldo Final.*?Valor Mobiliário Derivativo Características dos Títulos Quantidade\s+(.+?)\s+([0-9\.\,]+)\s*$",
-        text,
-        re.S,
-    )
+    """Extract asset quantities from both Saldo Inicial and Saldo Final sections.
+
+    Returns:
+        initial_asset      – name of the first listed asset in Saldo Inicial
+        initial_quantity   – quantity of that first asset
+        final_asset        – name of the first listed asset in Saldo Final
+        final_quantity     – quantity of that first asset
+        initial_quantities – dict mapping _balance_key(asset) → quantity for ALL
+                             assets listed in Saldo Inicial (used to match each
+                             operation row to its own asset's starting balance)
+
+    ``text`` is the raw section text with newlines preserved, so each asset row
+    in the balance table occupies its own physical line.  Asset descriptors may
+    contain digits (e.g. "Units 1 ON E 2 PNA") or wrap across lines.  Algorithm:
+
+    1. Locate the balance header and extract the block up to "Movimentações no Mês".
+    2. Process lines one by one, accumulating descriptor tokens.
+    3. A line ending with a ≤2-digit integer whose *next* line begins with a letter
+       is a descriptor continuation — the integer is part of the asset name.
+    4. A line ending with a genuine quantity terminates an asset row; reset and
+       continue to the next row (ALL rows collected, not just the first).
+    """
+    _HEADER = r"Valor Mobili[aá]rio Derivativo Caracter[íi]sticas dos T[íi]tulos Quantidade"
+
+    def _find_all(keyword: str) -> list[tuple[str, str]]:
+        """Return list of (asset_text, quantity_str) for every row after keyword."""
+        kw = re.search(keyword, text, re.S | re.I)
+        if not kw:
+            return []
+        after_kw = text[kw.end():]
+        hdr = re.search(_HEADER, after_kw, re.S | re.I)
+        if not hdr:
+            return []
+        body = after_kw[hdr.end():]
+        mov = re.search(r"Movimenta[çc][õo]es no M[êe]s", body, re.S | re.I)
+        block = body[: mov.start()] if mov else body[:600]
+
+        lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+        results: list[tuple[str, str]] = []
+        row_parts: list[str] = []
+        for i, line in enumerate(lines):
+            num_m = re.search(r"([0-9][0-9.,]*)\s*$", line)
+            if not num_m:
+                row_parts.append(line)
+                continue
+            num_str = num_m.group(1)
+            # A ≤2-digit bare integer followed by a letter-starting line is a
+            # descriptor continuation — the integer is part of the asset name.
+            is_descriptor = (
+                re.fullmatch(r"\d{1,2}", num_str)
+                and i + 1 < len(lines)
+                and re.match(r"^[A-Za-z\u00C0-\u00FF]", lines[i + 1])
+            )
+            if is_descriptor:
+                row_parts.append(line)
+                continue
+            pre = line[: num_m.start()].strip()
+            if pre:
+                row_parts.append(pre)
+            asset_text = sanitize_asset(" ".join(row_parts).strip())
+            if asset_text:
+                results.append((asset_text, num_str))
+            row_parts = []  # reset for next asset row
+
+        if results:
+            return results
+
+        # Fallback for condensed (no-newline) text — capture only the first row.
+        condensed = normalize_whitespace(block)
+        m = re.search(
+            r"([\u00C0-\u00FFa-zA-Z /]+?)\s+([0-9\.\,]+)\s+Movimenta[çc][õo]es",
+            condensed,
+            re.S,
+        )
+        return [(sanitize_asset(m.group(1)), m.group(2))] if m else []
+
+    initial_rows = _find_all("Saldo Inicial")
+    final_rows   = _find_all("Saldo Final")
+
+    # Build per-asset lookup dict (first occurrence of each key wins).
+    initial_quantities: dict[str, float] = {}
+    for asset_text, qty_str in initial_rows:
+        key = _balance_key(asset_text)
+        qty = parse_brl_number(qty_str)
+        if key and qty is not None and key not in initial_quantities:
+            initial_quantities[key] = qty
+
+    first_initial = initial_rows[0] if initial_rows else None
+    first_final   = final_rows[0]   if final_rows   else None
+
     return {
-        "initial_asset": sanitize_asset(initial_match.group(1)) if initial_match else "",
-        "initial_quantity": parse_brl_number(initial_match.group(2)) if initial_match else None,
-        "final_asset": sanitize_asset(final_match.group(1)) if final_match else "",
-        "final_quantity": parse_brl_number(final_match.group(2)) if final_match else None,
+        "initial_asset":      sanitize_asset(first_initial[0]) if first_initial else "",
+        "initial_quantity":   parse_brl_number(first_initial[1]) if first_initial else None,
+        "final_asset":        sanitize_asset(first_final[0]) if first_final else "",
+        "final_quantity":     parse_brl_number(first_final[1]) if first_final else None,
+        "initial_quantities": initial_quantities,  # all assets → qty
     }
 
 
@@ -194,6 +305,22 @@ def parse_operations(text: str) -> list[dict[str, Any]]:
     operations_text = normalize_whitespace(match.group(1))
     if not operations_text:
         return []
+
+    # Handle PDF page breaks that split 'Compra/Venda à vista' across pages.
+    # When 'vista' lands at the start of page N+1, pypdf places it AFTER the
+    # numeric columns (day, qty, price, vol) of the split row:
+    #   "...Compra à  27  19.300  2,04000  39.372,00  vista  Ações ON ..."
+    # The row-regex lookahead rejects 'vista' (lowercase v not in [A-ZÁÉÍÓÚÀ-ÿ]),
+    # causing the engine to backtrack and swallow the entire split row into the
+    # prefix of the next row, losing those shares entirely.
+    # Fix: remove the orphaned 'vista' between a number and an uppercase-starting
+    # next-row prefix, then let the regex parse both rows normally.
+    operations_text = re.sub(
+        r"(-?[0-9][0-9.,]*)\s+vista\s+(?=[A-ZÁÉÍÓÚÀ-ÿ])",
+        r"\1 ",
+        operations_text,
+        flags=re.I,
+    )
 
     rows = []
     pattern = re.compile(

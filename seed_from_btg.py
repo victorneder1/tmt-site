@@ -56,21 +56,43 @@ def main():
     )
     print(f"Documentos copiados: {len(docs)}")
 
-    # Copiar movimentos
+    # Copiar movimentos — limpa primeiro para evitar duplicatas
     protocols = tuple(d["protocol"] for d in docs)
     ph2  = ",".join("?" * len(protocols))
+    # Remove movimentos existentes para esses protocolos antes de reinserir
+    dst.execute(f"DELETE FROM movements WHERE protocol IN ({ph2})", protocols)
     movs = src.execute(
         f"SELECT * FROM movements WHERE protocol IN ({ph2})", protocols
     ).fetchall()
     if movs:
-        mov_cols = movs[0].keys()
+        mov_cols = [c for c in movs[0].keys() if c != "id"]  # ignora id para evitar conflitos
         col_str2 = ", ".join(mov_cols)
         val_str2 = ", ".join("?" * len(mov_cols))
         dst.executemany(
-            f"INSERT OR REPLACE INTO movements ({col_str2}) VALUES ({val_str2})",
-            [tuple(m) for m in movs]
+            f"INSERT INTO movements ({col_str2}) VALUES ({val_str2})",
+            [tuple(m[c] for c in mov_cols) for m in movs]
         )
     print(f"Movimentos copiados: {len(movs)}")
+
+    # Remover documentos e movimentos de Jan/26 para LWSA e MBRF
+    # (esses documentos existem no btg10sim mas não foram processados em produção,
+    # e queremos manter consistência entre os dois sites)
+    EXCLUDE = [
+        ("LWSA3", "2026-01%"),
+        ("MBRF3", "2026-01%"),
+    ]
+    for ticker, ref_pattern in EXCLUDE:
+        protocols = [
+            r[0] for r in dst.execute(
+                "SELECT protocol FROM documents WHERE ticker = ? AND reference_date LIKE ?",
+                (ticker, ref_pattern),
+            ).fetchall()
+        ]
+        for p in protocols:
+            dst.execute("DELETE FROM movements WHERE protocol = ?", (p,))
+            dst.execute("DELETE FROM documents WHERE protocol = ?", (p,))
+        if protocols:
+            print(f"Excluído Jan/26 de {ticker}: {len(protocols)} documento(s)")
 
     dst.commit()
     src.close()
