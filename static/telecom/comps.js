@@ -109,17 +109,12 @@ async function initComps() {
     ["comps-isp-from-select", "comps-isp-to-select"].forEach(id => {
         document.getElementById(id).addEventListener("change", renderISPOverview);
     });
-    ["overview-from-select", "overview-to-select"].forEach(id => {
-        document.getElementById(id).addEventListener("change", renderTelcosOverviewTables);
-    });
     ["vivo-operational-from-select", "vivo-operational-to-select", "vivo-ftth-toggle"].forEach(id => {
         document.getElementById(id).addEventListener("change", renderCompanyOperationalCharts);
     });
 
     renderValuationTable();
     renderAllFinancialViews();
-    populateOverviewRangeSelects();
-    renderTelcosOverviewTables();
     populateISPRangeSelects();
     renderISPOverview();
     if (document.getElementById("comps-bb-share-chart")) await renderAnatelCharts();
@@ -130,7 +125,6 @@ function setCompsPeriodMode(mode) {
     document.querySelectorAll(".comps-quarter-toggle").forEach(button => button.classList.toggle("active", mode === "quarter"));
     document.querySelectorAll(".comps-year-toggle").forEach(button => button.classList.toggle("active", mode === "year"));
     populateExcelRangeSelects();
-    populateOverviewRangeSelects();
     populateISPRangeSelects();
     const company = document.getElementById("comps-company-select").value;
     if (company) populateCompanyFinancialRange(getCompanyConfig(company));
@@ -567,20 +561,6 @@ function renderISPValuationTable() {
         });
 }
 
-function populateOverviewRangeSelects() {
-    const section = findSection("Net Revenue", "Net Revenue");
-    const periods = section ? (compsPeriodMode === "year" ? annualPeriodsFrom(section.periods) : section.periods) : [];
-    const from = document.getElementById("overview-from-select");
-    const to = document.getElementById("overview-to-select");
-    from.innerHTML = "";
-    to.innerHTML = "";
-    periods.forEach(p => {
-        from.appendChild(new Option(fmtMonth(p), p));
-        to.appendChild(new Option(fmtMonth(p), p));
-    });
-    from.value = periods.includes(TELCOS_OVERVIEW_START) ? TELCOS_OVERVIEW_START : (periods[0] || "");
-    to.value = periods[periods.length - 1] || "";
-}
 
 function populateISPRangeSelects() {
     const section = findSection("Net Revenue", "Net Revenue");
@@ -936,18 +916,13 @@ function renderOverviewHistoryTable(tableId, section, companies, formatMetric) {
 }
 
 function overviewHistoryPeriods(section) {
-    const fromValue = document.getElementById("overview-from-select").value;
-    const toValue = document.getElementById("overview-to-select").value;
     let periods = section.periods;
     if (compsPeriodMode === "year") {
-        periods = annualPeriodsFrom(periods);
-        return periods.filter(p => (!fromValue || p >= fromValue) && (!toValue || p <= toValue));
+        const fromYear = DEFAULT_YEAR_START;
+        return annualPeriodsFrom(periods).filter(p => !fromYear || p >= fromYear);
     }
-    const startIndex = fromValue ? periods.indexOf(fromValue) : -1;
-    const endIndex = toValue ? periods.indexOf(toValue) : -1;
-    const start = startIndex >= 0 ? startIndex : 0;
-    const end = endIndex >= 0 ? endIndex + 1 : periods.length;
-    return periods.slice(start, end);
+    const startIndex = periods.indexOf(TELCOS_OVERVIEW_START);
+    return periods.slice(startIndex >= 0 ? startIndex : 0);
 }
 
 function renderTelcosOverviewTable() {
