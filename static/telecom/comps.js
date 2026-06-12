@@ -109,12 +109,17 @@ async function initComps() {
     ["comps-isp-from-select", "comps-isp-to-select"].forEach(id => {
         document.getElementById(id).addEventListener("change", renderISPOverview);
     });
+    ["overview-from-select", "overview-to-select"].forEach(id => {
+        document.getElementById(id).addEventListener("change", renderTelcosOverviewTables);
+    });
     ["vivo-operational-from-select", "vivo-operational-to-select", "vivo-ftth-toggle"].forEach(id => {
         document.getElementById(id).addEventListener("change", renderCompanyOperationalCharts);
     });
 
     renderValuationTable();
     renderAllFinancialViews();
+    populateOverviewRangeSelects();
+    renderTelcosOverviewTables();
     populateISPRangeSelects();
     renderISPOverview();
     if (document.getElementById("comps-bb-share-chart")) await renderAnatelCharts();
@@ -125,6 +130,7 @@ function setCompsPeriodMode(mode) {
     document.querySelectorAll(".comps-quarter-toggle").forEach(button => button.classList.toggle("active", mode === "quarter"));
     document.querySelectorAll(".comps-year-toggle").forEach(button => button.classList.toggle("active", mode === "year"));
     populateExcelRangeSelects();
+    populateOverviewRangeSelects();
     populateISPRangeSelects();
     const company = document.getElementById("comps-company-select").value;
     if (company) populateCompanyFinancialRange(getCompanyConfig(company));
@@ -561,6 +567,12 @@ function renderISPValuationTable() {
         });
 }
 
+function populateOverviewRangeSelects() {
+    const section = findSection("Net Revenue", "Net Revenue");
+    const periods = section ? (compsPeriodMode === "year" ? annualPeriodsFrom(section.periods) : section.periods) : [];
+    fillRangeSelect("overview-from-select", "overview-to-select", periods, periods.length, TELCOS_OVERVIEW_START);
+}
+
 function populateISPRangeSelects() {
     const section = findSection("Net Revenue", "Net Revenue");
     const periods = section ? (compsPeriodMode === "year" ? annualPeriodsFrom(section.periods) : section.periods) : [];
@@ -915,17 +927,15 @@ function renderOverviewHistoryTable(tableId, section, companies, formatMetric) {
 }
 
 function overviewHistoryPeriods(section) {
-    const toValue = document.getElementById("comps-excel-to-select").value;
+    const fromValue = document.getElementById("overview-from-select").value;
+    const toValue = document.getElementById("overview-to-select").value;
     let periods = section.periods;
     if (compsPeriodMode === "year") {
-        const fromYear = DEFAULT_YEAR_START;
-        return periods.filter(period => {
-            const year = periodYear(period);
-            return (!fromYear || !year || year >= fromYear) && (!toValue || period <= toValue);
-        });
+        periods = annualPeriodsFrom(periods);
+        return periods.filter(p => (!fromValue || p >= fromValue) && (!toValue || p <= toValue));
     }
-    const startIndex = periods.indexOf(TELCOS_OVERVIEW_START);
-    const endIndex = periods.indexOf(toValue);
+    const startIndex = fromValue ? periods.indexOf(fromValue) : -1;
+    const endIndex = toValue ? periods.indexOf(toValue) : -1;
     const start = startIndex >= 0 ? startIndex : 0;
     const end = endIndex >= 0 ? endIndex + 1 : periods.length;
     return periods.slice(start, end);
