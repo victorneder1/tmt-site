@@ -345,7 +345,7 @@ function fmtVal(value, metric) {
     const isMultiple = label.includes("ev/") || label.includes("p/e") || label.includes("multiple");
     const isPct = label.includes("yield") || label.includes("growth") || label.includes("margin") ||
         label.includes("share") || label.includes("capex");
-    if (isMultiple) return value.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "x";
+    if (isMultiple) return value < 0 ? "n.a." : value.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "x";
     if (isPct) return (value * 100).toFixed(1) + "%";
     if (Math.abs(value) >= 1000) return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
     return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
