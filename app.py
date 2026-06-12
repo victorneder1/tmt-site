@@ -125,6 +125,9 @@ def _resolve_last_updated():
 
 
 @app.route("/")
+def root():
+    return redirect(url_for("telecom.index"))
+
 @app.route("/global")
 def index():
     return render_template("index.html")
