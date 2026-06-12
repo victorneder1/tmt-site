@@ -339,10 +339,10 @@ function fmtMonth(m) {
 }
 
 function fmtVal(value, metric) {
-    if (value === null || value === undefined || value === "") return "-";
-    if (typeof value === "string") return value;
     const label = String(metric || "").toLowerCase();
     const isMultiple = label.includes("ev/") || label.includes("p/e") || label.includes("multiple");
+    if (value === null || value === undefined || value === "") return isMultiple ? "n.a." : "-";
+    if (typeof value === "string") return value;
     const isPct = label.includes("yield") || label.includes("growth") || label.includes("margin") ||
         label.includes("share") || label.includes("capex");
     if (isMultiple) return value < 0 ? "n.a." : value.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "x";
