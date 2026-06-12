@@ -345,20 +345,8 @@ def _load_disk_cache(excel_path: Path, excel_mtime: float, valuation_path: Path 
     meta = payload.get("_cache_meta", {})
     if meta.get("version") != CACHE_VERSION:
         return None
-
-    # Accept cross-machine caches: compare only filenames, not full paths.
-    # Mtimes differ when files are uploaded to a remote server, so we skip that check.
-    cached_excel_name = Path(meta.get("excel_path", "")).name
-    cached_val_name = Path(meta.get("valuation_path", "") or "").name
-    cached_global_name = Path(meta.get("global_comps_path", "") or "").name
-    if (
-        cached_excel_name == excel_path.name
-        and cached_val_name == (valuation_path.name if valuation_path else "")
-        and cached_global_name == (global_comps_path.name if global_comps_path else "")
-    ):
-        payload.pop("_cache_meta", None)
-        return payload
-    return None
+    payload.pop("_cache_meta", None)
+    return payload
 
 
 def _load_stale_disk_cache(error: Exception) -> dict[str, Any] | None:
