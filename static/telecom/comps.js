@@ -33,9 +33,9 @@ const COMPS_COLORS = {
     AMX: "#E31E24",
     Brisanet: "#FF8000",
     "Giga+": "#0098DB",
-    Vero: "#C2185B",
+    Vero: "#E91E8C",
     Tecpar: "#2D5F2D",
-    Desktop: "#CC3333",
+    Desktop: "#D32F2F",
     Unifique: "#00BCD4",
     Others: "#9BAABF",
 };
