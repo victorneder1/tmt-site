@@ -59,6 +59,7 @@ def api_upload_comps_files():
         "big_telcos":   "Big Telcos Data.xlsx",
         "daily_comps":  "daily comps template 2025 - site telecom.xlsx",
         "valuation":    "telecom_comps_2026_2027.json",
+        "comps_cache":  "telco_comps_cache.json",
     }
     for field, filename in file_map.items():
         f = request.files.get(field)
