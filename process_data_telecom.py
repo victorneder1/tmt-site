@@ -7,6 +7,7 @@ Supports two formats:
 """
 
 import os
+import sys
 import glob
 import sqlite3
 import unicodedata
@@ -124,13 +125,13 @@ def map_operator_with_empresa(grupo, empresa, grupo_map, empresa_map):
 
 # ── Broadband ──
 
-def process_broadband():
-    """Process all broadband files into aggregated monthly data with technology breakdown."""
+def process_broadband(year=None):
+    """Process broadband files. If year is given, only process files for that year."""
     print("Processing Broadband data...")
     all_rows = []
 
-    # 1. Old CSV files
-    csv_files = sorted(glob.glob(os.path.join(BB_DIR, "Acessos_Banda_Larga_Fixa_*_Colunas.csv")))
+    pattern = f"Acessos_Banda_Larga_Fixa_{year}*_Colunas.csv" if year else "Acessos_Banda_Larga_Fixa_*_Colunas.csv"
+    csv_files = sorted(glob.glob(os.path.join(BB_DIR, pattern)))
     for fpath in csv_files:
         fname = os.path.basename(fpath)
         print(f"  Reading {fname}...")
@@ -229,12 +230,13 @@ def process_broadband():
 
 # ── Mobile ──
 
-def process_mobile():
-    """Process all mobile files into aggregated monthly data."""
+def process_mobile(year=None):
+    """Process mobile files. If year is given, only process files for that year."""
     print("Processing Mobile data...")
     all_rows = []
 
-    csv_files = sorted(glob.glob(os.path.join(MOB_DIR, "Acessos_Telefonia_Movel_*_Colunas.csv")))
+    pattern = f"Acessos_Telefonia_Movel_{year}*_Colunas.csv" if year else "Acessos_Telefonia_Movel_*_Colunas.csv"
+    csv_files = sorted(glob.glob(os.path.join(MOB_DIR, pattern)))
 
     # 1. Old CSV files (pivoted month columns)
     for fpath in csv_files:
@@ -384,9 +386,41 @@ def save_portability_to_db(portability_df):
     print(f"Portability table saved to {DB_PATH}")
 
 
+def upsert_year(year, bb_df, mob_df, port_df=None):
+    """Delete rows for the given year from each table and reinsert new data."""
+    prefix = str(year)
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(f"DELETE FROM broadband WHERE month LIKE '{prefix}-%'")
+    conn.execute(f"DELETE FROM mobile WHERE month LIKE '{prefix}-%'")
+    bb_df.to_sql("broadband", conn, if_exists="append", index=False)
+    mob_df.to_sql("mobile", conn, if_exists="append", index=False)
+    if port_df is not None:
+        conn.execute(f"DELETE FROM portability WHERE month LIKE '{prefix}-%'")
+        port_df_year = port_df[port_df["month"].str.startswith(prefix)]
+        port_df_year.to_sql("portability", conn, if_exists="append", index=False)
+    conn.commit()
+    conn.close()
+    print(f"Incremental update for {year} saved to {DB_PATH}")
+
+
 if __name__ == "__main__":
-    bb = process_broadband()
-    mob = process_mobile()
-    port = process_portability()
-    save_to_db(bb, mob, port)
+    incremental = "--incremental" in sys.argv
+    year = None
+    for arg in sys.argv[1:]:
+        if arg.isdigit() and len(arg) == 4:
+            year = int(arg)
+
+    if incremental:
+        import datetime
+        year = year or datetime.date.today().year
+        print(f"Incremental mode: updating year {year} only")
+        bb = process_broadband(year=year)
+        mob = process_mobile(year=year)
+        port = process_portability()
+        upsert_year(year, bb, mob, port)
+    else:
+        bb = process_broadband()
+        mob = process_mobile()
+        port = process_portability()
+        save_to_db(bb, mob, port)
     print("Done!")

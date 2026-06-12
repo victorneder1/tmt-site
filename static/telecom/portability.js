@@ -8,7 +8,7 @@ const PORT_COLORS = {
     "Vivo":     "#7B2D8E",
     "TIM":      "#003399",
     "Oi":       "#F5A623",
-    "Brisanet": "#00A651",
+    "Brisanet": "#FF8000",
     "Unifique": "#00BCD4",
     "Algar":    "#FF6B35",
     "Sercomtel":"#2D5F2D",

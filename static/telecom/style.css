@@ -185,6 +185,20 @@ main {
     display: block;
 }
 
+.anatel-tabs {
+    margin: -4px 0 16px;
+    padding: 0;
+    background: transparent;
+}
+
+.anatel-content {
+    display: none;
+}
+
+.anatel-content.active {
+    display: block;
+}
+
 /* ── Filters Bar ── */
 .filters-bar {
     display: flex;
@@ -329,6 +343,101 @@ main {
     height: 320px;
 }
 
+.spacious-chart {
+    height: 420px;
+}
+
+.telcos-overview-grid {
+    grid-template-columns: 1fr;
+}
+
+.telcos-history-card .table-wrapper {
+    max-height: 460px;
+    overflow: auto;
+}
+
+.overview-anchor-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    background: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 31, 98, 0.08);
+    scroll-margin-top: 16px;
+}
+
+.overview-anchor-btn,
+.overview-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 6px 12px;
+    border: 1px solid #c8d8ee;
+    border-radius: 16px;
+    color: #195AB4;
+    background: #f6f9fd;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.overview-anchor-btn:hover,
+.overview-back-btn:hover {
+    background: #e8eff9;
+    border-color: #195AB4;
+}
+
+.card-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 2px solid #195AB4;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+}
+
+.card-title-row .card-title {
+    border-bottom: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.overview-back-btn {
+    flex-shrink: 0;
+    min-height: 28px;
+    padding: 5px 10px;
+}
+
+.telcos-history-card {
+    scroll-margin-top: 16px;
+}
+
+.telcos-history-card table {
+    min-width: 900px;
+}
+
+.telcos-history-card th:first-child,
+.telcos-history-card td:first-child {
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.telcos-history-card tbody tr:nth-child(odd) {
+    background: #ffffff;
+}
+
+.telcos-history-card tbody tr:nth-child(even) {
+    background: #f5f8fc;
+}
+
 .chart-footnote {
     margin-top: 8px;
     font-size: 11px;
@@ -339,9 +448,130 @@ main {
 }
 
 /* ── Summary Table ── */
+.comps-mode-btn {
+    padding: 8px 18px;
+    border: 1px solid #195AB4;
+    border-radius: 20px;
+    background: #ffffff;
+    color: #195AB4;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 34px;
+}
+
+.comps-mode-btn.active {
+    background: #195AB4;
+    color: #ffffff;
+}
+
+.comps-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.comps-kpi-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 92px;
+    justify-content: center;
+}
+
+.comps-kpi-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #6b7b96;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.comps-kpi-card strong {
+    color: #001F62;
+    font-size: 22px;
+    line-height: 1.1;
+}
+
+.comps-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.company-wide-grid {
+    grid-template-columns: 1fr;
+}
+
+.comps-arpu-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.compact-chart {
+    height: 245px;
+}
+
+.comps-company-view {
+    display: none;
+}
+
+.comps-company-layout {
+    display: none;
+}
+
+.company-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: flex-end;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    background: #001F62;
+    color: #ffffff;
+    border-radius: 6px;
+}
+
+.company-eyebrow,
+.company-hero-meta span {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.company-hero h2 {
+    font-size: 24px;
+    margin: 4px 0;
+}
+
+.company-hero p {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 13px;
+}
+
+.company-hero-meta {
+    text-align: right;
+}
+
+.company-hero-meta strong {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.comps-placeholder {
+    color: #667085;
+    font-size: 13px;
+}
+
 .card-table .table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+}
+
+#comps-main .card-table .table-wrapper {
+    max-height: calc(100vh - 190px);
+    overflow: auto;
 }
 
 .card-table table {
@@ -373,6 +603,23 @@ main {
     background: #001F62;
 }
 
+#comps-valuation-table thead tr:first-child th {
+    top: 0;
+}
+
+#comps-valuation-table thead tr:nth-child(2) th {
+    top: 34px;
+    z-index: 2;
+}
+
+#comps-valuation-table thead tr:first-child th:first-child {
+    z-index: 5;
+}
+
+#comps-valuation-table thead tr:first-child th:nth-child(2) {
+    z-index: 4;
+}
+
 .card-table tbody td {
     padding: 6px 10px;
     text-align: center;
@@ -399,6 +646,73 @@ main {
 
 .card-table tbody tr:hover {
     background: #e6eef8;
+}
+
+#comps-valuation-table th:first-child,
+#comps-valuation-table td:first-child {
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#comps-valuation-table th:nth-child(2),
+#comps-valuation-table td:nth-child(2) {
+    width: 120px;
+    min-width: 120px;
+}
+
+#comps-valuation-table .metric-band-1 {
+    background-color: #f6f9fd;
+}
+
+#comps-valuation-table thead .metric-band-1 {
+    background-color: #0a2a6e;
+}
+
+#comps-valuation-table .metric-start {
+    border-left: 1px solid #c8d8ee;
+}
+
+#comps-valuation-table thead .metric-start,
+#comps-valuation-table thead .metric-group-header {
+    border-left: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.comps-group-row td {
+    background: #e8eff9 !important;
+    color: #001F62;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    border-top: 2px solid #c8d8ee;
+    border-bottom: 1px solid #c8d8ee;
+}
+
+.comps-spacer-row td {
+    height: 12px;
+    padding: 0 !important;
+    background: #ffffff !important;
+    border-bottom: 0 !important;
+}
+
+.comps-global-group-row td {
+    background: #eef3f9 !important;
+    color: #243b63;
+}
+
+.comps-median-row td {
+    background: #001F62 !important;
+    color: #ffffff;
+    font-weight: 700;
+    border-top: 2px solid #195AB4;
+    border-bottom: 2px solid #195AB4;
+}
+
+.comps-median-row td:first-child {
+    background: #001F62 !important;
 }
 
 /* Operator group header row */
@@ -447,6 +761,11 @@ main {
     font-weight: 600;
 }
 
+.val-negative-soft {
+    color: #b94a48;
+    font-weight: 600;
+}
+
 /* ── Analysts Footer ── */
 .analysts-footer {
     display: flex;
@@ -481,6 +800,21 @@ main {
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+    .comps-kpi-grid,
+    .comps-dashboard-grid,
+    .comps-arpu-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .company-hero {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .company-hero-meta {
+        text-align: left;
+    }
+
     header {
         padding: 12px 16px;
     }

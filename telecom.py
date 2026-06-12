@@ -5,6 +5,7 @@ Telecom Dashboard Blueprint — serves Anatel broadband and mobile data.
 import os
 import sqlite3
 from flask import Blueprint, render_template, jsonify, request
+from telecom_comps import load_telco_comps
 
 telecom_bp = Blueprint("telecom", __name__, url_prefix="/telecom")
 
@@ -34,6 +35,30 @@ def get_db():
 @telecom_bp.route("/")
 def index():
     return render_template("telecom/index.html")
+
+
+@telecom_bp.route("/api/comps")
+def api_comps():
+    try:
+        return jsonify(load_telco_comps())
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 503
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@telecom_bp.route("/api/upload-daily-comps", methods=["POST"])
+def api_upload_daily_comps():
+    from app import UPLOAD_KEY
+    key = request.headers.get("X-Upload-Key") or request.form.get("key")
+    if key != UPLOAD_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"error": "No file provided"}), 400
+    dest = os.path.join(DATA_DIR, "daily comps template 2025 - site telecom.xlsx")
+    f.save(dest)
+    return jsonify({"status": "ok", "saved": os.path.basename(dest)})
 
 
 # ── API: Broadband ──

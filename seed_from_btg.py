@@ -47,6 +47,21 @@ def main():
         print("Nenhum documento encontrado para as empresas TMT no btg10sim.")
         src.close(); dst.close(); return
 
+    # Espelhar o subconjunto TMT do btg10sim: documentos que existem no destino,
+    # mas nao existem mais na origem, devem sair para nao distorcer "latest filing".
+    source_protocols = {d["protocol"] for d in docs}
+    cvm_codes = tuple(str(c.get("cvm_code")) for c in companies if c.get("cvm_code"))
+    ph_cvm = ",".join("?" * len(cvm_codes))
+    existing = dst.execute(
+        f"SELECT protocol FROM documents WHERE cvm_code IN ({ph_cvm})", cvm_codes
+    ).fetchall()
+    stale_protocols = [row[0] for row in existing if row[0] not in source_protocols]
+    if stale_protocols:
+        ph_stale = ",".join("?" * len(stale_protocols))
+        dst.execute(f"DELETE FROM movements WHERE protocol IN ({ph_stale})", stale_protocols)
+        dst.execute(f"DELETE FROM documents WHERE protocol IN ({ph_stale})", stale_protocols)
+        print(f"Documentos stale removidos: {len(stale_protocols)}")
+
     doc_cols = docs[0].keys()
     col_str  = ", ".join(doc_cols)
     val_str  = ", ".join("?" * len(doc_cols))
@@ -74,25 +89,34 @@ def main():
         )
     print(f"Movimentos copiados: {len(movs)}")
 
-    # Remover documentos e movimentos de Jan/26 para LWSA e MBRF
-    # (esses documentos existem no btg10sim mas não foram processados em produção,
-    # e queremos manter consistência entre os dois sites)
-    EXCLUDE = [
-        ("LWSA3", "2026-01%"),
-        ("MBRF3", "2026-01%"),
-    ]
-    for ticker, ref_pattern in EXCLUDE:
-        protocols = [
-            r[0] for r in dst.execute(
-                "SELECT protocol FROM documents WHERE ticker = ? AND reference_date LIKE ?",
-                (ticker, ref_pattern),
-            ).fetchall()
-        ]
-        for p in protocols:
-            dst.execute("DELETE FROM movements WHERE protocol = ?", (p,))
-            dst.execute("DELETE FROM documents WHERE protocol = ?", (p,))
-        if protocols:
-            print(f"Excluído Jan/26 de {ticker}: {len(protocols)} documento(s)")
+    # Normalizar ticker e sector para cada empresa segundo companies_bz.json.
+    # O btg10sim pode usar tickers diferentes (ex: BRIT3 vs BRST3) para a mesma
+    # empresa (mesmo cvm_code). Garantimos que o tmt-site use sempre os valores
+    # configurados localmente.
+    cvm_to_company = {c["cvm_code"]: c for c in companies if c.get("cvm_code")}
+    total_doc_fixes = 0
+    total_mov_fixes = 0
+    for cvm_code, company in cvm_to_company.items():
+        ticker = company.get("ticker", "")
+        sector = company.get("sector", "")
+        if not ticker:
+            continue
+        rd = dst.execute(
+            "UPDATE documents SET ticker = ?, sector = ? WHERE cvm_code = ? AND (ticker != ? OR sector != ?)",
+            (ticker, sector, str(cvm_code), ticker, sector),
+        )
+        rm = dst.execute(
+            "UPDATE movements SET ticker = ?, sector = ? "
+            "WHERE protocol IN (SELECT protocol FROM documents WHERE cvm_code = ?) "
+            "AND (ticker != ? OR sector != ?)",
+            (ticker, sector, str(cvm_code), ticker, sector),
+        )
+        if rd.rowcount or rm.rowcount:
+            print(f"Normalizado {company['name']}: {rd.rowcount} docs, {rm.rowcount} movimentos -> ticker={ticker} sector={sector}")
+        total_doc_fixes += rd.rowcount
+        total_mov_fixes += rm.rowcount
+    if total_doc_fixes or total_mov_fixes:
+        print(f"Total normalizações: {total_doc_fixes} documentos, {total_mov_fixes} movimentos")
 
     dst.commit()
     src.close()

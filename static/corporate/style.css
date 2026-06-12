@@ -234,6 +234,17 @@
     flex-shrink: 0;
 }
 .tr-reset-btn:hover { background: #c0392b; color: #fff; }
+.tr-context-badge {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--tr-blue);
+    background: rgba(25, 90, 180, 0.08);
+    padding: 3px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    font-weight: 600;
+    font-family: var(--tr-font);
+}
 
 /* ── Buyback sort toggle ── */
 .tr-sort-toggle {
@@ -326,6 +337,20 @@
     font-family: var(--tr-font);
 }
 .tr-content > div:first-child .tr-section-title { margin-top: 0; }
+.tr-section-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+.tr-section-head .tr-section-title { margin-bottom: 0; width: 100%; min-width: 0; }
+.tr-section-inline-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 14px;
+    justify-content: flex-start;
+}
 
 /* ── KPI cards ── */
 .tr-kpi-row { display: grid; gap: 13px; grid-template-columns: repeat(3, 1fr); }
@@ -374,14 +399,25 @@
 
 /* ── Grids ── */
 .tr-g2  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
-.tr-g3  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.tr-g3  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: stretch; }
 .tr-glw { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.tr-g3 > .tr-sc {
+    min-height: 0;
+    height: var(--tr-fill-card-height, auto);
+    max-height: var(--tr-fill-card-height, none);
+}
+#inMonthlyBlock,
+#inAccumBlock { --tr-fill-card-height: 500px; }
 
 /* ── Equal-height table card in 2-col grid ── */
 .tr-g2 > .tr-sc { display: flex; flex-direction: column; }
 .tr-g2 > .tr-sc .tr-tbl-wrap { flex: 1; min-height: 0; overflow: hidden; max-height: none; height: 1px; }
 .tr-g2 > .tr-sc .tr-tbl { height: 100%; }
 .tr-g2 > .tr-sc .tr-tbl tbody tr { height: 1px; }
+
+/* ── Equal-height table card in 3-col grid (insider monthly/accum blocks) ── */
+.tr-g3 > .tr-sc:not(.tr-sc-fill) { display: flex; flex-direction: column; }
+.tr-g3 > .tr-sc:not(.tr-sc-fill) .tr-tbl-wrap { flex: 1; min-height: 0; overflow-y: auto; max-height: none; height: 1px; }
 
 /* ── Section card ── */
 .tr-sc {
@@ -704,13 +740,23 @@
 /* ── Responsive — Tablet (≤960px) ── */
 @media (max-width: 960px) {
     .tr-g2, .tr-g3, .tr-glw { grid-template-columns: 1fr; }
+    #inMonthlyBlock,
+    #inAccumBlock { --tr-fill-card-height: auto; }
+    .tr-sc-fill .tr-bar-wrap { justify-content: flex-start; gap: 6px; }
+    .tr-sc-fill .tr-nb-rows  { justify-content: flex-start; gap: 6px; }
     .tr-kpi-row-5 { grid-template-columns: repeat(2, 1fr); }
     .tr-main { padding: 14px 16px 36px; }
     .tr-filter-bar { padding: 9px 16px; }
-    /* Allow card to not clip horizontally scrollable tables */
-    .tr-sc { overflow: visible; }
-    /* Restore scroll + height for tables that were locked by the 2-col grid rule */
-    .tr-g2 > .tr-sc .tr-tbl-wrap {
+    /* On mobile, revert grid cards to block so table wraps scroll correctly */
+    .tr-g2 > .tr-sc,
+    .tr-g3 > .tr-sc:not(.tr-sc-fill) {
+        display: block;
+        overflow: hidden;
+    }
+    /* Restore scroll + height for table wraps */
+    .tr-g2 > .tr-sc .tr-tbl-wrap,
+    .tr-g3 > .tr-sc:not(.tr-sc-fill) .tr-tbl-wrap {
+        flex: none;
         overflow-x: auto;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -718,6 +764,25 @@
         height: auto;
     }
     .tr-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* Force tables wide enough to trigger horizontal scroll */
+    .tr-g2 .tr-tbl { min-width: 560px; }
+    .tr-g3 .tr-tbl { min-width: 480px; }
+    /* Freeze Company column in grid tables */
+    .tr-g2 .tr-tbl thead th:first-child,
+    .tr-g3 .tr-tbl thead th:first-child {
+        position: sticky; left: 0; z-index: 3;
+        background: #F7F9FC;
+        box-shadow: 2px 0 6px rgba(0,31,98,0.07);
+    }
+    .tr-g2 .tr-tbl tbody td:first-child,
+    .tr-g3 .tr-tbl tbody td:first-child {
+        position: sticky; left: 0; z-index: 2;
+        background: #fff;
+        box-shadow: 2px 0 6px rgba(0,31,98,0.05);
+    }
+    .tr-g2 .tr-tbl tr:hover td:first-child,
+    .tr-g3 .tr-tbl tr:hover td:first-child { background: #FAFBFE; }
+    .tr-g3 .tr-tbl thead th.mcap-active:first-child { background: #EAEFF8; }
 }
 
 @media (max-width: 760px) {
@@ -739,6 +804,14 @@
     .tr-filter-controls .tr-sel { width: 100%; box-sizing: border-box; }
     .tr-filter-controls .search-box input { width: 100%; }
     .tr-filter-count { margin-left: 0; }
+    .tr-context-badge { margin-left: 0; }
+    .tr-section-head { align-items: stretch; }
+    .tr-section-head .tr-section-title { min-width: 0; }
+    .tr-section-inline-controls {
+        margin-bottom: 12px;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
     .tr-reset-btn {
         margin-left: 8px; padding: 4px 12px; font-size: 12px; font-weight: 600;
         font-family: var(--tr-font); cursor: pointer; border-radius: 16px;

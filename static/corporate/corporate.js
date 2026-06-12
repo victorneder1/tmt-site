@@ -1,14 +1,20 @@
-/* Insider Tracker — corporate.js */
+﻿/* CVM Tracker — tracker.js */
 
 // ── State ──────────────────────────────────────────────────────────────────
 let cache = { buybacks_executed: [], insiders_buying: [], insiders_selling: [] };
 let allCompanies = [];
 let allSectors   = [];
-let bbSortMode = "mcap";    // "volume" | "mcap"  — applies to both monthly and accumulated
-let inSortMode     = "pct";  // "pct" | "volume"
-let syncInterval = null;
 let topSearchQuery = "";
 let bbHistorySearchQuery = "";
+let inHistorySearchQuery = "";
+let bbSortMode = "mcap";    // "volume" | "mcap"  — applies to both monthly and accumulated
+let inSortMode     = "volume";  // "pct" | "volume"
+let syncInterval = null;
+let trackerPollInterval = null;
+let insiderGridSyncFrame = null;
+let insiderGridSyncTimeout = null;
+let trackerLoaded = false;
+let trackerLoading = false;
 
 const TOP_N = 10;
 
@@ -17,10 +23,10 @@ const MON     = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","No
 const MONFULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
-const $sector  = () => document.getElementById("sectorFilter");
-const $company = () => document.getElementById("companyFilter");
+const $sector    = () => document.getElementById("sectorFilter");
+const $company   = () => document.getElementById("companyFilter");
 const $topSearch = () => document.getElementById("tickerSearch");
-const $year    = () => document.getElementById("analyticsYearFilter");
+const $year      = () => document.getElementById("analyticsYearFilter");
 const $month   = () => document.getElementById("analyticsMonthFilter");
 const $bbFrom  = () => document.getElementById("buybacksRollingFrom");
 const $bbTo    = () => document.getElementById("buybacksRollingTo");
@@ -29,6 +35,9 @@ const $inTo    = () => document.getElementById("insidersRollingTo");
 const $bbHistSearch  = () => document.getElementById("bbHistoryTickerSearch");
 const $bbHistSector  = () => document.getElementById("bbHistorySectorFilter");
 const $bbHistCompany = () => document.getElementById("bbHistoryCompanyFilter");
+const $inHistSearch  = () => document.getElementById("inHistoryTickerSearch");
+const $inHistSector  = () => document.getElementById("inHistorySectorFilter");
+const $inHistCompany = () => document.getElementById("inHistoryCompanyFilter");
 
 // ── Format helpers ──────────────────────────────────────────────────────────
 function fmt(n, d = 2) {
@@ -80,45 +89,12 @@ function ymIndexToStr(idx) {
     return `${y}-${String(m).padStart(2,"0")}`;
 }
 
-function normalizeSearchQuery(value) {
-    return String(value || "").trim().toLowerCase();
-}
-
-function getCompanyMeta(name) {
-    return allCompanies.find(c => (c.name || "") === (name || "")) || null;
-}
-
-function matchesCompanySearch(name, ticker, query) {
-    const q = normalizeSearchQuery(query);
-    if (!q) return true;
-    return String(name || "").toLowerCase().includes(q) || String(ticker || "").toLowerCase().includes(q);
-}
-
-function filterCompanyNamesBySearch(names, query) {
-    return names.filter(name => {
-        const meta = getCompanyMeta(name);
-        return matchesCompanySearch(name, meta?.ticker || "", query);
-    });
-}
-
-function resolveSearchCompany(names, query) {
-    const matches = filterCompanyNamesBySearch(names, query);
-    if (!matches.length) return "";
-
-    const q = normalizeSearchQuery(query);
-    const exact = matches.find(name => {
-        const meta = getCompanyMeta(name);
-        return name.toLowerCase() === q || String(meta?.ticker || "").toLowerCase() === q;
-    });
-    return exact || matches[0];
-}
-
 // ── Filters ─────────────────────────────────────────────────────────────────
 function getFilters() {
     return {
         sector:  $sector()?.value  || "all",
         company: $company()?.value || "all",
-        search: topSearchQuery,
+        search:  topSearchQuery.trim().toLowerCase(),
     };
 }
 
@@ -126,7 +102,15 @@ function getBbHistoryFilters() {
     return {
         sector:  $bbHistSector()?.value  || "all",
         company: $bbHistCompany()?.value || "all",
-        search: bbHistorySearchQuery,
+        search:  bbHistorySearchQuery.trim().toLowerCase(),
+    };
+}
+
+function getInHistoryFilters() {
+    return {
+        sector:  $inHistSector()?.value  || "all",
+        company: $inHistCompany()?.value || "all",
+        search:  inHistorySearchQuery.trim().toLowerCase(),
     };
 }
 
@@ -135,7 +119,10 @@ function applyFilters(rows) {
     return rows.filter(r => {
         if (sector  !== "all" && (r.sector  || "") !== sector)      return false;
         if (company !== "all" && (r.company_alias||"") !== company) return false;
-        if (search && !matchesCompanySearch(r.company_alias || "", r.ticker || "", search)) return false;
+        if (search) {
+            const hay = ((r.ticker || "") + " " + (r.company_alias || "") + " " + (r.company_name || "")).toLowerCase();
+            if (!hay.includes(search)) return false;
+        }
         return true;
     });
 }
@@ -153,7 +140,7 @@ function filterByPeriod(rows, ym) {
 // ── Top-N / display row logic ───────────────────────────────────────────────
 // No filter → Top 10 global; sector selected → all in sector; company → all for company
 function getDisplayRows(rows, sortKey) {
-    const { sector, company, search } = getFilters();
+    const { sector, company } = getFilters();
     const key = sortKey || "financial_volume";
     const isMcap = key === "pct_market_cap";
     const sorted = [...rows]
@@ -161,7 +148,7 @@ function getDisplayRows(rows, sortKey) {
             ? (r.pct_market_cap != null && r.pct_market_cap > 0)
             : (Number(r.financial_volume ?? 0) > 0))
         .sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0));
-    if (sector === "all" && company === "all" && !search) return sorted.slice(0, TOP_N);
+    if (sector === "all" && company === "all") return sorted.slice(0, TOP_N);
     return sorted;
 }
 
@@ -183,13 +170,11 @@ function setInSort(mode) {
 
 // ── Context badge ───────────────────────────────────────────────────────────
 function updateContextBadge() {
-    const badge = document.getElementById("contextBadge");
-    if (!badge) return;
     const { sector, company } = getFilters();
     let text = "Top 10 — All Companies";
     if (company !== "all")      text = company;
     else if (sector !== "all")  text = sector + " — All Companies";
-    badge.textContent = text;
+    document.getElementById("contextBadge").textContent = text;
 }
 
 // ── Rolling aggregation ─────────────────────────────────────────────────────
@@ -228,7 +213,7 @@ function buildRolling(rows, from, to, qKey) {
     }).sort((a,b) => b.financial_volume - a.financial_volume);
 }
 
-function buildInsiderRolling(rows, from, to) {
+function buildInsiderRolling(rows, from, to, capAt100 = true) {
     const s = ymIndex(from), e = ymIndex(to);
     if (s < 0 || e < 0) return [];
     const grouped = new Map();
@@ -239,7 +224,7 @@ function buildInsiderRolling(rows, from, to) {
         if (!grouped.has(key)) grouped.set(key, {
             company_alias: r.company_alias, ticker: r.ticker, market: r.market||"BZ",
             sector: r.sector, organ: r.organ, shares: 0, financial_volume: 0, _wp: 0,
-            trade_count: 0, sum_initial_quantity: 0,
+            trade_count: 0, sum_initial_quantity: 0, _maxPct: 0,
         });
         const g = grouped.get(key);
         g.shares += Number(r.shares||0);
@@ -248,14 +233,19 @@ function buildInsiderRolling(rows, from, to) {
         g.trade_count += Number(r.trade_count||0);
         if (Number(r.sum_initial_quantity||0) > g.sum_initial_quantity)
             g.sum_initial_quantity = Number(r.sum_initial_quantity||0);
+        if (Number(r.pct_shares_traded||0) > g._maxPct)
+            g._maxPct = Number(r.pct_shares_traded||0);
     });
     return [...grouped.values()].map(g => {
         g.avg_price = g.shares ? g._wp / g.shares : 0;
         delete g._wp;
-        // Only show % when initial >= shares (parsable, non-misleading)
-        g.pct_shares_traded = (g.sum_initial_quantity > 0 && g.sum_initial_quantity >= g.shares)
+        // Prefer accumulated pct; fall back to highest individual transaction pct
+        // (covers cases where total shares exceed sum_initial_quantity over long periods)
+        const valid = g.sum_initial_quantity > 0 && (!capAt100 || g.sum_initial_quantity >= g.shares);
+        g.pct_shares_traded = valid
             ? Math.round(g.shares / g.sum_initial_quantity * 100 * 1e4) / 1e4
-            : null;
+            : g._maxPct > 0 ? g._maxPct : null;
+        delete g._maxPct;
         return g;
     }).sort((a,b) => b.financial_volume - a.financial_volume);
 }
@@ -289,7 +279,7 @@ function topNetCompanies(companies, n = 5) {
 
 // ── Tab switching ───────────────────────────────────────────────────────────
 function switchTab(tab) {
-    document.querySelectorAll(".main-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tr-tab").forEach(t => t.classList.remove("active"));
     document.querySelectorAll(".tr-content").forEach(c => c.classList.remove("active"));
     document.getElementById("tab-" + tab).classList.add("active");
     document.getElementById("content-" + tab).classList.add("active");
@@ -299,7 +289,7 @@ function switchTab(tab) {
 
 // ── Period filter population ────────────────────────────────────────────────
 function allPeriods(analytics) {
-    const activeTab = document.querySelector(".main-tab.active")?.id === "tab-buybacks" ? "buybacks" : "insiders";
+    const activeTab = document.querySelector(".tr-tab.active")?.id === "tab-buybacks" ? "buybacks" : "insiders";
     const rows = activeTab === "buybacks"
         ? (analytics.buybacks_executed || [])
         : [...(analytics.insiders_buying || []), ...(analytics.insiders_selling || [])];
@@ -399,8 +389,7 @@ function populateCompanyFilter(analytics) {
     const namesFromConfig = allCompanies
         .filter(c => sector === "all" || (c.sector||"") === sector)
         .map(c => c.name||"").filter(Boolean);
-    let names = [...new Set([...namesFromData, ...namesFromConfig])].sort();
-    if (topSearchQuery) names = filterCompanyNamesBySearch(names, topSearchQuery);
+    const names = [...new Set([...namesFromData, ...namesFromConfig])].sort();
     const prev = $company()?.value || "all";
     $company().innerHTML = `<option value="all">All Companies</option>` +
         names.map(n => `<option value="${n}">${n}</option>`).join("");
@@ -423,10 +412,6 @@ function ensureBuybackHistoryFilters() {
     label.className = "tr-filter-label";
     label.textContent = "Filters";
 
-    const search = document.createElement("div");
-    search.className = "search-box tr-history-search";
-    search.innerHTML = `<input type="text" id="bbHistoryTickerSearch" placeholder="Search company or ticker..." oninput="onBbHistorySearchInput(event)">`;
-
     const sector = document.createElement("select");
     sector.id = "bbHistorySectorFilter";
     sector.className = "tr-sel";
@@ -438,6 +423,10 @@ function ensureBuybackHistoryFilters() {
     company.className = "tr-sel";
     company.setAttribute("onchange", "onBbHistoryCompanyChange()");
     company.innerHTML = `<option value="all">All Companies</option>`;
+
+    const search = document.createElement("div");
+    search.className = "search-box tr-history-search";
+    search.innerHTML = `<input type="text" id="bbHistoryTickerSearch" placeholder="Search company or ticker..." oninput="onBbHistorySearchInput(event)">`;
 
     periodControls.insertBefore(marker, periodControls.firstChild);
     periodControls.insertBefore(label, marker.nextSibling);
@@ -470,7 +459,7 @@ function populateBuybackHistoryCompanyFilter(analytics) {
     const sel = $bbHistCompany();
     if (!sel) return;
 
-    const { sector } = getBbHistoryFilters();
+    const { sector, search } = getBbHistoryFilters();
     const rows = (analytics.buybacks_executed || [])
         .filter(r => sector === "all" || (r.sector || "") === sector);
     const namesFromData = new Set(rows.map(r => r.company_alias || "").filter(Boolean));
@@ -479,14 +468,16 @@ function populateBuybackHistoryCompanyFilter(analytics) {
         .map(c => c.name || "")
         .filter(Boolean);
     let names = [...new Set([...namesFromData, ...namesFromConfig])].sort();
-    if (bbHistorySearchQuery) names = filterCompanyNamesBySearch(names, bbHistorySearchQuery);
+    if (search) names = names.filter(n => n.toLowerCase().includes(search));
     const prev = sel.value || "all";
 
     sel.innerHTML = `<option value="all">All Companies</option>` +
         names.map(n => `<option value="${n}">${n}</option>`).join("");
-    let nextValue = [...sel.options].some(o => o.value === prev) ? prev : "all";
-    if (bbHistorySearchQuery) nextValue = resolveSearchCompany(names, bbHistorySearchQuery) || "all";
-    sel.value = [...sel.options].some(o => o.value === nextValue) ? nextValue : "all";
+    if (search && names.length === 1) {
+        sel.value = names[0];
+    } else {
+        sel.value = [...sel.options].some(o => o.value === prev) ? prev : "all";
+    }
 }
 
 function updateBuybackHistoryFilterHighlights() {
@@ -496,10 +487,135 @@ function updateBuybackHistoryFilterHighlights() {
     if (c) c.classList.toggle("tr-sel-active", c.value !== "all");
 }
 
+function onBbHistorySearchInput(event) {
+    bbHistorySearchQuery = event.target.value || "";
+    const s = $bbHistSector();
+    const c = $bbHistCompany();
+    if (s) s.value = "all";
+    if (c) c.value = "all";
+    populateBuybackHistoryCompanyFilter(cache);
+    updateBuybackHistoryFilterHighlights();
+    renderAll(cache);
+}
+
+// ── Insider history filters ──────────────────────────────────────────────────
+function ensureInsiderHistoryFilters() {
+    const periodControls = document.getElementById("inHistoryFrom")?.closest(".tr-rolling-controls");
+    if (!periodControls) return;
+    if ($inHistSearch() && $inHistSector() && $inHistCompany()) return;
+
+    const label = document.createElement("span");
+    label.className = "tr-filter-label";
+    label.textContent = "Filters";
+
+    const sector = document.createElement("select");
+    sector.id = "inHistorySectorFilter";
+    sector.className = "tr-sel";
+    sector.setAttribute("onchange", "onInHistorySectorChange()");
+    sector.innerHTML = `<option value="all">All Sectors</option>`;
+
+    const company = document.createElement("select");
+    company.id = "inHistoryCompanyFilter";
+    company.className = "tr-sel";
+    company.setAttribute("onchange", "onInHistoryCompanyChange()");
+    company.innerHTML = `<option value="all">All Companies</option>`;
+
+    const search = document.createElement("div");
+    search.className = "search-box tr-history-search";
+    search.innerHTML = `<input type="text" id="inHistoryTickerSearch" placeholder="Search company or ticker..." oninput="onInHistorySearchInput(event)">`;
+
+    periodControls.insertBefore(search,  periodControls.firstChild);
+    periodControls.insertBefore(company, periodControls.firstChild);
+    periodControls.insertBefore(sector,  periodControls.firstChild);
+    periodControls.insertBefore(label,   periodControls.firstChild);
+
+    const searchInput = search.querySelector("input");
+    if (searchInput) searchInput.value = inHistorySearchQuery;
+}
+
+function populateInsiderHistorySectorFilter(analytics) {
+    ensureInsiderHistoryFilters();
+    const sel = $inHistSector();
+    if (!sel) return;
+    const prev = sel.value || "all";
+    const rows = [...(analytics.insiders_buying || []), ...(analytics.insiders_selling || [])];
+    const sectorsFromData = rows.map(r => r.sector || "").filter(Boolean);
+    const sectors = [...new Set([...(allSectors || []), ...sectorsFromData])].sort();
+    sel.innerHTML = `<option value="all">All Sectors</option>` +
+        sectors.map(s => `<option value="${s}">${s}</option>`).join("");
+    sel.value = [...sel.options].some(o => o.value === prev) ? prev : "all";
+}
+
+function populateInsiderHistoryCompanyFilter(analytics) {
+    ensureInsiderHistoryFilters();
+    const sel = $inHistCompany();
+    if (!sel) return;
+    const { sector, search } = getInHistoryFilters();
+    const rows = [...(analytics.insiders_buying || []), ...(analytics.insiders_selling || [])]
+        .filter(r => sector === "all" || (r.sector || "") === sector);
+    const namesFromData = new Set(rows.map(r => r.company_alias || "").filter(Boolean));
+    const namesFromConfig = allCompanies
+        .filter(c => sector === "all" || (c.sector || "") === sector)
+        .map(c => c.name || "").filter(Boolean);
+    let names = [...new Set([...namesFromData, ...namesFromConfig])].sort();
+    if (search) names = names.filter(n => n.toLowerCase().includes(search));
+    const prev = sel.value || "all";
+    sel.innerHTML = `<option value="all">All Companies</option>` +
+        names.map(n => `<option value="${n}">${n}</option>`).join("");
+    if (search && names.length === 1) {
+        sel.value = names[0];
+    } else {
+        sel.value = [...sel.options].some(o => o.value === prev) ? prev : "all";
+    }
+}
+
+function updateInsiderHistoryFilterHighlights() {
+    const s = $inHistSector();
+    const c = $inHistCompany();
+    if (s) s.classList.toggle("tr-sel-active", s.value !== "all");
+    if (c) c.classList.toggle("tr-sel-active", c.value !== "all");
+}
+
+function onInHistorySearchInput(event) {
+    inHistorySearchQuery = event.target.value || "";
+    const s = $inHistSector();
+    const c = $inHistCompany();
+    if (s) s.value = "all";
+    if (c) c.value = "all";
+    populateInsiderHistoryCompanyFilter(cache);
+    updateInsiderHistoryFilterHighlights();
+    renderAll(cache);
+}
+
+function onInHistorySectorChange() {
+    inHistorySearchQuery = "";
+    const inp = $inHistSearch();
+    if (inp) inp.value = "";
+    populateInsiderHistoryCompanyFilter(cache);
+    updateInsiderHistoryFilterHighlights();
+    renderAll(cache);
+}
+
+function onInHistoryCompanyChange() {
+    updateInsiderHistoryFilterHighlights();
+    renderAll(cache);
+}
+
 
 // ── Section title helper ────────────────────────────────────────────────────
 function sectionTitleHTML(text) {
     return `<div class="tr-section-title">${text}</div>`;
+}
+
+function monthlyInsiderSectionHeader(text) {
+    return `<div class="tr-section-head">
+        ${sectionTitleHTML(text)}
+        <div class="tr-section-inline-controls">
+            <span class="tr-filter-label" style="margin-right:4px">Sort by</span>
+            <button class="tr-toggle${inSortMode === "volume" ? " active" : ""}" id="inSortByVolume" onclick="setInSort('volume')">By Amount</button>
+            <button class="tr-toggle${inSortMode === "pct" ? " active" : ""}" id="inSortByPct" onclick="setInSort('pct')">By % Ownership</button>
+        </div>
+    </div>`;
 }
 
 // ── KPI card ────────────────────────────────────────────────────────────────
@@ -557,7 +673,7 @@ function buybackTable(rows, shTitle, shSub, dotCls, badgeCls, showRefMonth, sort
         <td><span class="tr-tk">${r.ticker||"—"}</span></td>
         ${showRefMonth ? `<td class="r"><span class="tr-mn">${ymLabel(r.reference_year_month)}</span></td>` : ""}
         <td class="r"><span class="tr-mn">${fmt(r.shares_reacquired??0,0)}</span></td>
-        <td${volTdCls}><span class="tr-mn lg${isVol ? " blue" : ""}">${fmtVol(r.financial_volume)}</span></td>
+        <td${volTdCls}><span class="tr-mn${isVol ? " blue" : ""}">${fmtVol(r.financial_volume)}</span></td>
         <td class="r"><span class="tr-mn muted">${r.market_cap ? fmtMcap(r.market_cap) : "—"}</span></td>
         <td${mcapTdCls}><span class="tr-mn${r.pct_market_cap != null ? (isMcap ? " blue" : "") : " muted"}">${r.pct_market_cap != null ? fmt(r.pct_market_cap, 1) + "%" : "—"}</span></td>
         <td class="r"><span class="tr-mn">${fmtPrice(r.avg_price)}</span></td>
@@ -576,8 +692,7 @@ function buybackTable(rows, shTitle, shSub, dotCls, badgeCls, showRefMonth, sort
 // ── Net balance chart ───────────────────────────────────────────────────────
 function nbChart(companies, shTitle, shSub, badge, sortMode) {
     const isPctMode = sortMode === "pct";
-    const abs = companies.map(c => isPctMode ? Math.abs(c.pct ?? 0) : Math.abs(c.net));
-    const maxAbs = abs.length ? Math.max(...abs) : 1;
+    const PCT_CAP = 1000;
 
     // Buyers: largest to smallest (top → bottom), bars right
     const buyers  = companies.filter(c => c.net > 0)
@@ -586,12 +701,27 @@ function nbChart(companies, shTitle, shSub, badge, sortMode) {
     const sellers = companies.filter(c => c.net < 0)
         .sort((a, b) => (isPctMode ? (b.pct??0)-(a.pct??0) : b.net - a.net));
 
+    // In pct mode: scale each side independently — buyers can exceed 100% (cap at PCT_CAP),
+    // sellers are always ≤ 100% and should not be dwarfed by buyer outliers.
+    const buyMax = isPctMode
+        ? Math.max(...buyers.map(c => Math.min(Math.abs(c.pct ?? 0), PCT_CAP)), 1)
+        : Math.max(...[...buyers, ...sellers].map(c => Math.abs(c.net)), 1);
+    const sellMax = isPctMode
+        ? Math.max(...sellers.map(c => Math.abs(c.pct ?? 0)), 1)
+        : buyMax;
+
     function makeRow(c) {
-        const rawVal = isPctMode ? Math.abs(c.pct ?? 0) : Math.abs(c.net);
-        const pct = Math.min(48, rawVal / maxAbs * 48).toFixed(1);
         const isSell = c.net < 0;
-        const isLarge = pct > 15;
-        const valFmt = isPctMode ? fmt(Math.abs(c.pct??0),1)+"%" : fmtVol(Math.abs(c.net));
+        const absPct = Math.abs(c.pct ?? 0);
+        const rawVal = isPctMode
+            ? (isSell ? absPct : Math.min(absPct, PCT_CAP))
+            : Math.abs(c.net);
+        const maxAbs = isSell ? sellMax : buyMax;
+        const pct = Math.min(48, rawVal / maxAbs * 48).toFixed(1);
+        const isLarge = pct > 30;
+        const valFmt = isPctMode
+            ? (absPct > PCT_CAP ? `> ${PCT_CAP}%` : fmt(absPct, 1) + "%")
+            : fmtVol(Math.abs(c.net));
         let barContent = "";
         let extValHTML = "";
         if (isLarge) {
@@ -636,11 +766,109 @@ function nbChart(companies, shTitle, shSub, badge, sortMode) {
     </div>`;
 }
 
+function rankNetSides(rows, n, isFiltered, metricKey = "net") {
+    const buyers = rows
+        .filter(r => Number(r.net || 0) > 0)
+        .sort((a, b) => Number(b[metricKey] || 0) - Number(a[metricKey] || 0));
+    const sellers = rows
+        .filter(r => Number(r.net || 0) < 0)
+        .sort((a, b) => Number(a[metricKey] || 0) - Number(b[metricKey] || 0));
+    return [
+        ...(isFiltered ? buyers : buyers.slice(0, n)),
+        ...(isFiltered ? sellers : sellers.slice(0, n)),
+    ];
+}
+
+function buildMonthlyNetAmountChart(buyRows, sellRows, n) {
+    const { sector, company } = getFilters();
+    const isFiltered = sector !== "all" || company !== "all";
+    const byComp = new Map();
+
+    function ensureEntry(row) {
+        const key = row.company_alias || "";
+        if (!byComp.has(key)) {
+            byComp.set(key, { name: key, ticker: row.ticker || "", buy: 0, sell: 0, net: 0 });
+        }
+        return byComp.get(key);
+    }
+
+    buyRows.filter(r => Number(r.financial_volume || 0) > 0).forEach(r => {
+        const entry = ensureEntry(r);
+        entry.buy += Number(r.financial_volume || 0);
+    });
+    sellRows.filter(r => Number(r.financial_volume || 0) > 0).forEach(r => {
+        const entry = ensureEntry(r);
+        entry.sell += Number(r.financial_volume || 0);
+    });
+
+    const rows = [...byComp.values()].map(entry => ({
+        ...entry,
+        net: entry.buy - entry.sell,
+    })).filter(entry => entry.net !== 0);
+
+    return rankNetSides(rows, n, isFiltered, "net");
+}
+
+function buildMonthlyNetPctChart(buyRows, sellRows, n) {
+    const { sector, company } = getFilters();
+    const isFiltered = sector !== "all" || company !== "all";
+    const byGroup = new Map();
+
+    function ensureEntry(row) {
+        const group = mapOrgan(row.organ || "");
+        const key = `${row.company_alias || ""}||${group}`;
+        if (!byGroup.has(key)) {
+            byGroup.set(key, {
+                name: `${row.company_alias || ""}`,
+                ticker: row.ticker || "",
+                group,
+                buyShares: 0,
+                sellShares: 0,
+                initialQty: 0,
+            });
+        }
+        return byGroup.get(key);
+    }
+
+    buyRows.filter(r => Number(r.financial_volume || 0) > 0).forEach(r => {
+        const entry = ensureEntry(r);
+        entry.buyShares += Number(r.shares || 0);
+        if (Number(r.sum_initial_quantity || 0) > 0) {
+            entry.initialQty = Number(r.sum_initial_quantity || 0);
+        }
+    });
+    sellRows.filter(r => Number(r.financial_volume || 0) > 0).forEach(r => {
+        const entry = ensureEntry(r);
+        entry.sellShares += Number(r.shares || 0);
+        if (Number(r.sum_initial_quantity || 0) > 0) {
+            entry.initialQty = Number(r.sum_initial_quantity || 0);
+        }
+    });
+
+    const rows = [...byGroup.values()].map(entry => {
+        const buyPct = entry.initialQty > 0 ? (entry.buyShares / entry.initialQty) * 100 : 0;
+        const sellPct = entry.initialQty > 0 ? (entry.sellShares / entry.initialQty) * 100 : 0;
+        const pct = buyPct - sellPct;
+        return {
+            name: entry.name,
+            ticker: entry.ticker,
+            net: pct,
+            pct,
+        };
+    }).filter(entry => entry.pct !== 0);
+
+    return rankNetSides(rows, n, isFiltered, "pct");
+}
+
+function buildAccumNetAmountChart(buyRows, sellRows, n) {
+    return buildMonthlyNetAmountChart(buyRows, sellRows, n);
+}
+
 // ── Insiders table (monthly or accumulated) ─────────────────────────────────
 // side: "buy" | "sell"
 // period: label string (e.g. "Feb/2025") or period range for accumulated
 // isAccum: true = accumulated table (use "shares" key, slightly different styling)
-function insiderTable(rows, side, period, isAccum) {
+function insiderTable(rows, side, period, isAccum, options = {}) {
     const isGreen = side === "buy";
     const dotCls  = isGreen ? "green" : "red";
     const title   = isGreen
@@ -651,10 +879,12 @@ function insiderTable(rows, side, period, isAccum) {
     const sharesKey = "shares";
     const active = rows.filter(r => Number(r.financial_volume||0) > 0);
 
-    const isPctSort = inSortMode === "pct";
+    const sortMode = options.sortMode || (isAccum ? "volume" : inSortMode);
+    const showPct = options.showPct ?? !isAccum;
+    const isPctSort = sortMode === "pct" && showPct;
     const sign = isGreen ? "+" : "−";
-    const { sector, company, search } = getFilters();
-    const isFiltered = sector !== "all" || company !== "all" || !!search;
+    const { sector, company } = getFilters();
+    const isFiltered = sector !== "all" || company !== "all";
 
     let trs, badge;
 
@@ -675,7 +905,7 @@ function insiderTable(rows, side, period, isAccum) {
             <td class="tr-organ-col"><span class="tr-rt">${mapOrgan(sr.organ||"")}</span></td>
             <td class="r"><span class="tr-mn">${fmt(sr[sharesKey]??0,0)}</span></td>
             <td class="r"><span class="tr-mn ${dotCls}">${sign}${fmtVolNoPrefix(sr.financial_volume)}</span></td>
-            <td class="r mcap-active"><span class="tr-mn blue">${sr.pct_shares_traded != null ? fmt(sr.pct_shares_traded,1)+"%" : "—"}</span></td>
+            ${showPct ? `<td class="r mcap-active"><span class="tr-mn blue">${sr.pct_shares_traded != null ? (sr.pct_shares_traded > 1000 ? "> 1000%" : fmt(sr.pct_shares_traded,1)+"%") : "—"}</span></td>` : ""}
             <td class="r"><span class="tr-mn">${fmtPrice(sr.avg_price)}</span></td>
         </tr>`).join("");
     } else {
@@ -708,7 +938,7 @@ function insiderTable(rows, side, period, isAccum) {
                     <td class="tr-organ-col"><span class="tr-rt">${mapOrgan(sr.organ||"")}</span></td>
                     <td class="r"><span class="tr-mn">${fmt(sr[sharesKey]??0,0)}</span></td>
                     ${volCell}
-                    <td class="r"><span class="tr-mn${sr.pct_shares_traded != null ? "" : " muted"}">${sr.pct_shares_traded != null ? fmt(sr.pct_shares_traded,1)+"%" : "—"}</span></td>
+                    ${showPct ? `<td class="r"><span class="tr-mn${sr.pct_shares_traded != null ? "" : " muted"}">${sr.pct_shares_traded != null ? (sr.pct_shares_traded > 1000 ? "> 1000%" : fmt(sr.pct_shares_traded,1)+"%") : "—"}</span></td>` : ""}
                     <td class="r"><span class="tr-mn">${fmtPrice(sr.avg_price)}</span></td>
                 </tr>`;
             });
@@ -718,8 +948,8 @@ function insiderTable(rows, side, period, isAccum) {
     if (!trs) return `<div class="tr-sc"><div class="tr-sh"><div class="tr-st"><span class="tr-dot ${dotCls}"></span>${title}</div></div><div class="tr-empty">No ${title.toLowerCase()} for the selected period.</div></div>`;
 
     const thead = isPctSort
-        ? `<tr><th>Company</th><th class="tr-organ-col">Group</th><th class="r">Shares</th><th class="r">Amount (R$)</th><th class="r mcap-active">% Ownership</th><th class="r">Avg. Price</th></tr>`
-        : `<tr><th>Company</th><th class="tr-organ-col">Group</th><th class="r">Shares</th><th class="r mcap-active">Amount (R$)</th><th class="r">% Ownership</th><th class="r">Avg. Price</th></tr>`;
+        ? `<tr><th>Company</th><th class="tr-organ-col">Group</th><th class="r">Shares</th><th class="r">Amount (R$)</th>${showPct ? `<th class="r mcap-active">% Ownership</th>` : ""}<th class="r">Avg. Price</th></tr>`
+        : `<tr><th>Company</th><th class="tr-organ-col">Group</th><th class="r">Shares</th><th class="r mcap-active">Amount (R$)</th>${showPct ? `<th class="r">% Ownership</th>` : ""}<th class="r">Avg. Price</th></tr>`;
 
     return `<div class="tr-sc">
         <div class="tr-sh"><div class="tr-sh-left">
@@ -972,8 +1202,8 @@ function renderAll(analytics) {
     const inFrom = $inFrom()?.value || "", inTo = $inTo()?.value || "";
 
     const bbRollRaw = buildRolling(bbAll,    bbFrom, bbTo, "shares_reacquired");
-    const inBuyRoll = buildInsiderRolling(inBuyAll, inFrom, inTo);
-    const inSellRoll= buildInsiderRolling(inSellAll,inFrom, inTo);
+    const inBuyRoll = buildInsiderRolling(inBuyAll,  inFrom, inTo, false);
+    const inSellRoll= buildInsiderRolling(inSellAll, inFrom, inTo, true);
     const bbRoll    = getDisplayRows(bbRollRaw, bbRollSortKey);
 
     const bbRollLbl = (bbFrom && bbTo) ? `${ymLabel(bbFrom)} → ${ymLabel(bbTo)}` : "Accumulated";
@@ -983,7 +1213,6 @@ function renderAll(analytics) {
     updateContextBadge();
     const { sector, company } = getFilters();
     const parts = [];
-    if (topSearchQuery) parts.push(`Search: ${topSearchQuery.toUpperCase()}`);
     if (sector  !== "all") parts.push(sector);
     if (company !== "all") parts.push(company);
     if (ym) parts.push(ymLbl);
@@ -1006,12 +1235,9 @@ function renderAll(analytics) {
     const histCompany = getBbHistoryFilters().company !== "all" ? getBbHistoryFilters().company : "";
     const histFrom    = document.getElementById("bbHistoryFrom")?.value || bbFrom;
     const histTo      = document.getElementById("bbHistoryTo")?.value   || bbTo;
-    const histEmpty = bbHistorySearchQuery
-        ? "No company matches the current search."
-        : "Select a company in the history filters above to view its repurchase history.";
     set("bbHistoryBlock", histCompany
         ? buybackHistoryChart(analytics.buybacks_executed || [], histCompany, histFrom, histTo)
-        : `<div class="tr-sc"><div class="tr-empty">${histEmpty}</div></div>`);
+        : `<div class="tr-sc"><div class="tr-empty">Select a company in the history filters above to view its repurchase history.</div></div>`);
 
     // ── BUYBACKS: pass per-table sortMode ───────────────────────────────────
     set("bbMonthlyBlock", `
@@ -1025,106 +1251,44 @@ function renderAll(analytics) {
     `);
 
     // ── INSIDERS ────────────────────────────────────────────────────────────
-    set("inMonthlyPeriodLabel", sectionTitleHTML("Insider Activity in the Month"));
+    set("inMonthlyPeriodLabel", monthlyInsiderSectionHeader("Insider Activity in the Month"));
 
-    // Net balance: compute net = buys - sells per company, then rank by net.
-    // Universe = top N companies from each table (buy + sell), unioned.
-    // A company that both bought and sold appears once with its true net position.
-    function buildNetChart(buyRows, sellRows, n) {
-        const { sector, company, search } = getFilters();
-        const isFiltered = sector !== "all" || company !== "all" || !!search;
-
-        // Determine which companies are "visible" in each table (mirrors insiderTable logic).
-        // Uses TOP_N (full table size) so the universe is large enough to find n net buyers/sellers.
-        function visibleNames(rows) {
-            const active = rows.filter(r => Number(r.financial_volume||0) > 0);
-            if (inSortMode === "pct") {
-                // Sort by pct descending; rows without pct fall to end sorted by volume
-                const sorted = [...active].sort((a, b) => {
-                    const ap = a.pct_shares_traded, bp = b.pct_shares_traded;
-                    if (ap == null && bp == null) return Number(b.financial_volume||0) - Number(a.financial_volume||0);
-                    if (ap == null) return 1;
-                    if (bp == null) return -1;
-                    return bp - ap;
-                });
-                const top = isFiltered ? sorted : sorted.slice(0, TOP_N);
-                return new Set(top.map(r => r.company_alias||""));
-            }
-            const byComp = new Map();
-            active.forEach(r => byComp.set(r.company_alias||"", (byComp.get(r.company_alias||"")||0) + Number(r.financial_volume||0)));
-            const sorted = [...byComp.entries()].sort((a,b) => b[1]-a[1]);
-            const top = isFiltered ? sorted : sorted.slice(0, TOP_N);
-            return new Set(top.map(([k]) => k));
-        }
-
-        const universe = new Set([...visibleNames(buyRows), ...visibleNames(sellRows)]);
-
-        // Accumulate net per company across both buy and sell rows
-        const map = new Map();
-        buyRows.filter(r => universe.has(r.company_alias||"")).forEach(r => {
-            const k = r.company_alias||"";
-            if (!map.has(k)) map.set(k, {name:k, ticker:r.ticker||"", net:0, netShares:0, maxIq:0});
-            const e = map.get(k);
-            e.net       += Number(r.financial_volume||0);
-            e.netShares += Number(r.shares||0);
-            e.maxIq      = Math.max(e.maxIq, Number(r.sum_initial_quantity||0));
-        });
-        sellRows.filter(r => universe.has(r.company_alias||"")).forEach(r => {
-            const k = r.company_alias||"";
-            if (!map.has(k)) map.set(k, {name:k, ticker:r.ticker||"", net:0, netShares:0, maxIq:0});
-            const e = map.get(k);
-            e.net       -= Number(r.financial_volume||0);
-            e.netShares -= Number(r.shares||0);
-            e.maxIq      = Math.max(e.maxIq, Number(r.sum_initial_quantity||0));
-        });
-
-        // Derive pct from net shares
-        map.forEach(e => {
-            const abs = Math.abs(e.netShares);
-            e.pct = (e.maxIq > 0 && e.maxIq >= abs) ? e.netShares / e.maxIq * 100 : null;
-        });
-
-        const sortKey = inSortMode === "pct"
-            ? (a, b) => (b.pct??0) - (a.pct??0)
-            : (a, b) => b.net - a.net;
-
-        const all = [...map.values()];
-        const buyers  = all.filter(e => e.net > 0).sort(sortKey).slice(0, n);
-        const sellers = all.filter(e => e.net < 0).sort((a,b) => -sortKey(a,b)).slice(0, n);
-        return [...buyers.map(e => ({...e})), ...sellers.map(e => ({...e}))];
-    }
-
-    const netMonTop  = buildNetChart(inBuyMon,  inSellMon,  5);
-    const netRollTop = buildNetChart(inBuyRoll, inSellRoll, 5);
+    const netMonTop  = inSortMode === "pct"
+        ? buildMonthlyNetPctChart(inBuyMon, inSellMon, Infinity)
+        : buildMonthlyNetAmountChart(inBuyMon, inSellMon, Infinity);
+    const netRollTop = buildAccumNetAmountChart(inBuyRoll, inSellRoll, Infinity);
+    const monthlyNetSubtitle = inSortMode === "pct"
+        ? "The net balance reflects net shares traded as a percentage of the group's initial position for the month."
+        : "The net balance reflects the net value of purchases minus sales across all company insiders for the period.";
 
     set("inMonthlyBlock", `
-        ${insiderTable(inBuyMon, "buy", ym)}
-        ${insiderTable(inSellMon, "sell", ym)}
-        ${nbChart(netMonTop, `Net Balance — ${ymLbl}`, `The net balance reflects the net value of purchases minus sales across all company insiders for the period.`, undefined, inSortMode)}
+        ${insiderTable(inBuyMon, "buy", ym, false, { sortMode: inSortMode, showPct: true })}
+        ${insiderTable(inSellMon, "sell", ym, false, { sortMode: inSortMode, showPct: true })}
+        ${nbChart(netMonTop, `Net Balance — ${ymLbl}`, monthlyNetSubtitle, undefined, inSortMode)}
     `);
 
     set("inRollingPeriodLabel", sectionTitleHTML("Accumulated Insider Activity"));
 
     set("inAccumBlock", `
-        ${insiderTable(inBuyRoll, "buy", inRollLbl, true)}
-        ${insiderTable(inSellRoll, "sell", inRollLbl, true)}
-        ${nbChart(netRollTop, `Net Balance — ${inRollLbl}`, `The net balance reflects the net value of purchases minus sales across all company insiders for the period.`, undefined, inSortMode)}
+        ${insiderTable(inBuyRoll, "buy", inRollLbl, true, { sortMode: "volume", showPct: false })}
+        ${insiderTable(inSellRoll, "sell", inRollLbl, true, { sortMode: "volume", showPct: false })}
+        ${nbChart(netRollTop, `Net Balance — ${inRollLbl}`, `The net balance reflects the net value of purchases minus sales across all company insiders for the period.`, undefined, "volume")}
     `);
 
-    // Insider history chart — company comes from the top-level filter
+    // Insider history chart
     set("inHistoryPeriodLabel", sectionTitleHTML("Insider Activity History by Company"));
-    const inHistCompany = company !== "all"
-        ? company
-        : (topSearchQuery ? resolveSearchCompany(allCompanies.map(c => c.name || "").filter(Boolean), topSearchQuery) : "");
+    populateInsiderHistorySectorFilter(analytics);
+    populateInsiderHistoryCompanyFilter(analytics);
+    updateInsiderHistoryFilterHighlights();
+    const inHistCompany = getInHistoryFilters().company !== "all" ? getInHistoryFilters().company : "";
     const inHistFrom = document.getElementById("inHistoryFrom")?.value || inFrom;
     const inHistTo   = document.getElementById("inHistoryTo")?.value  || inTo;
-    set("inHistoryBlock", !inHistCompany && topSearchQuery
-        ? `<div class="tr-sc"><div class="tr-empty">No company matches the current search.</div></div>`
-        : insiderHistoryChart(
+    set("inHistoryBlock", inHistCompany
+        ? insiderHistoryChart(
             analytics.insiders_buying  || [],
             analytics.insiders_selling || [],
-            inHistCompany, inHistFrom, inHistTo
-        ));
+            inHistCompany, inHistFrom, inHistTo)
+        : `<div class="tr-sc"><div class="tr-empty">Select a company in the history filters above to view its insider activity history.</div></div>`);
 
     // inRollingBlock no longer used for pivot — clear it
     set("inRollingBlock", "");
@@ -1145,28 +1309,59 @@ function set(id, html) {
     if (el) el.innerHTML = html;
 }
 
+function syncInsiderGridHeights() {
+    return;
+}
+
+function scheduleInsiderGridHeights() {
+    if (insiderGridSyncFrame !== null) cancelAnimationFrame(insiderGridSyncFrame);
+    if (insiderGridSyncTimeout !== null) clearTimeout(insiderGridSyncTimeout);
+    insiderGridSyncFrame = requestAnimationFrame(() => {
+        insiderGridSyncFrame = null;
+        syncInsiderGridHeights();
+    });
+    insiderGridSyncTimeout = window.setTimeout(() => {
+        insiderGridSyncTimeout = null;
+        syncInsiderGridHeights();
+    }, 150);
+}
+
+function initInsiderGridHeightSync() {
+    ["section-tracker", "content-insiders"].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        new MutationObserver(() => scheduleInsiderGridHeights())
+            .observe(el, { attributes: true, attributeFilter: ["class"] });
+    });
+    if (document.fonts?.ready) {
+        document.fonts.ready.then(() => scheduleInsiderGridHeights()).catch(() => {});
+    }
+    window.addEventListener("load", scheduleInsiderGridHeights);
+}
+
 // ── Event handlers ──────────────────────────────────────────────────────────
 function updateFilterHighlights() {
     const s = $sector();
     const c = $company();
-    const hasSearch = !!normalizeSearchQuery(topSearchQuery);
+    const q = $topSearch();
     if (s) s.classList.toggle("tr-sel-active", s.value !== "all");
     if (c) c.classList.toggle("tr-sel-active", c.value !== "all");
-    // Show reset button when any top-level filter is active
     const btn = document.getElementById("resetFiltersBtn");
-    if (btn) btn.style.display = (hasSearch || (s && s.value !== "all") || (c && c.value !== "all")) ? "" : "none";
+    const active = (s && s.value !== "all") || (c && c.value !== "all") || !!topSearchQuery;
+    if (btn) btn.style.display = active ? "" : "none";
 }
 
-function clearTopSearch() {
+function resetFilters() {
+    const s = $sector();
+    const c = $company();
+    const q = $topSearch();
+    if (s) s.value = "all";
+    if (c) { c.innerHTML = "<option value=\"all\">All Companies</option>"; c.value = "all"; }
+    if (q) q.value = "";
     topSearchQuery = "";
-    const input = $topSearch();
-    if (input) input.value = "";
-}
-
-function clearBbHistorySearch() {
-    bbHistorySearchQuery = "";
-    const input = $bbHistSearch();
-    if (input) input.value = "";
+    populateCompanyFilter(cache);
+    updateFilterHighlights();
+    renderAll(cache);
 }
 
 function onTickerSearchInput(event) {
@@ -1179,55 +1374,28 @@ function onTickerSearchInput(event) {
     updateFilterHighlights();
     renderAll(cache);
 }
-
-function onBbHistorySearchInput(event) {
-    bbHistorySearchQuery = event.target.value || "";
-    const s = $bbHistSector();
-    const c = $bbHistCompany();
-    if (s) s.value = "all";
-    if (c) c.value = "all";
-    populateBuybackHistoryCompanyFilter(cache);
-    updateBuybackHistoryFilterHighlights();
-    renderAll(cache);
-}
-
-function resetFilters() {
-    const s = $sector();
-    const c = $company();
-    const hs = $bbHistSector();
-    const hc = $bbHistCompany();
-    clearTopSearch();
-    clearBbHistorySearch();
-    if (s) s.value = "all";
-    if (c) { c.innerHTML = "<option value=\"all\">All Companies</option>"; c.value = "all"; }
-    if (hs) hs.value = "all";
-    if (hc) hc.value = "all";
-    // Re-populate dropdowns for the full universe
-    populateCompanyFilter(cache);
-    populateBuybackHistoryCompanyFilter(cache);
-    updateFilterHighlights();
-    updateBuybackHistoryFilterHighlights();
-    renderAll(cache);
-}
 function onFilterChange() {
-    clearTopSearch();
-    populateCompanyFilter(cache);
+    // company selected — clear search
+    topSearchQuery = "";
+    const q = $topSearch();
+    if (q) q.value = "";
     updateFilterHighlights();
     renderAll(cache);
 }
 function onSectorChange() {
-    clearTopSearch();
-    updateFilterHighlights();
+    // sector selected — clear search
+    topSearchQuery = "";
+    const q = $topSearch();
+    if (q) q.value = "";
     populateCompanyFilter(cache);
+    updateFilterHighlights();
     renderAll(cache);
 }
 function onBbHistoryCompanyChange() {
-    clearBbHistorySearch();
     updateBuybackHistoryFilterHighlights();
     renderAll(cache);
 }
 function onBbHistorySectorChange() {
-    clearBbHistorySearch();
     populateBuybackHistoryCompanyFilter(cache);
     updateBuybackHistoryFilterHighlights();
     renderAll(cache);
@@ -1240,6 +1408,8 @@ function onYearChange() {
 
 // ── Data loading with first-run detection ───────────────────────────────────
 async function loadStatus() {
+    if (trackerLoading) return;
+    trackerLoading = true;
     try {
         const data = await fetch("/tracker/api/status").then(r => r.json());
         const hasData = (
@@ -1274,8 +1444,26 @@ async function loadStatus() {
 
     } catch(e) {
         // silent fail
+    } finally {
+        trackerLoading = false;
+    }
+}
+
+function trackerEnsureLoaded() {
+    if (!trackerLoaded) {
+        trackerLoaded = true;
+        loadStatus();
+    }
+    if (!trackerPollInterval) {
+        trackerPollInterval = setInterval(() => {
+            const trackerSection = document.getElementById("section-tracker");
+            if (trackerSection && trackerSection.classList.contains("active")) {
+                loadStatus();
+            }
+        }, 30000);
     }
 }
 
 loadStatus();
 setInterval(loadStatus, 30000);
+

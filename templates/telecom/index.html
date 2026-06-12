@@ -25,9 +25,7 @@
                 <h1 class="header-title">TMT Dashboard</h1>
             </div>
         </div>
-        <div class="header-right">
-            <span class="header-subtitle">Source: Anatel</span>
-        </div>
+        <div class="header-right"></div>
     </header>
 
     <nav class="site-top-tabs" aria-label="Primary">
@@ -38,14 +36,229 @@
 
     <!-- Sub tabs -->
     <nav class="tabs main-tabs">
-        <button class="tab main-tab active" data-main="broadband">Broadband</button>
-        <button class="tab main-tab" data-main="mobile">Mobile</button>
-        <button class="tab main-tab" data-main="portability">Portability</button>
+        <button class="tab main-tab active" data-main="comps">Comps</button>
+        <button class="tab main-tab" data-main="operating">Operating Data</button>
+        <button class="tab main-tab" data-main="anatel">Anatel Data</button>
     </nav>
 
     <main>
+        <div id="comps-main" class="main-content active">
+            <div class="card card-table">
+                <h3 class="card-title">Trading Comps - 2026E / 2027E</h3>
+                <div class="table-wrapper">
+                    <table id="comps-valuation-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="operating-main" class="main-content">
+            <div class="filters-bar">
+                <button class="comps-mode-btn active" id="comps-big-telcos-btn" type="button">Brazil Telcos</button>
+                <button class="comps-mode-btn" id="comps-telcos-overview-btn" type="button">Telcos Overview</button>
+                <button class="comps-mode-btn" id="comps-isps-btn" type="button">ISPs</button>
+                <div class="filter-group">
+                    <label>Company</label>
+                    <select id="comps-company-select"></select>
+                </div>
+            </div>
+
+            <section id="comps-consolidated-view">
+
+            <div class="section-header">Financial Revenue Trends</div>
+            <div class="filters-bar comps-range-bar">
+                <div class="filter-group">
+                    <label>Excel From</label>
+                    <select id="comps-excel-from-select"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Excel To</label>
+                    <select id="comps-excel-to-select"></select>
+                </div>
+                <div class="comps-period-toggle">
+                    <button class="comps-mode-btn active comps-quarter-toggle" id="comps-quarter-btn" type="button">Per Quarter</button>
+                    <button class="comps-mode-btn comps-year-toggle" id="comps-year-btn" type="button">Per Year</button>
+                </div>
+            </div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card"><h3 class="card-title">Service Revenue</h3><div class="chart-container"><canvas id="comps-service-revenue-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Service Revenue Growth y/y</h3><div class="chart-container"><canvas id="comps-service-growth-chart"></canvas></div></div>
+            </div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card"><h3 class="card-title">Mobile Service Revenue</h3><div class="chart-container"><canvas id="comps-mobile-service-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Mobile Service Revenue Growth y/y</h3><div class="chart-container"><canvas id="comps-mobile-service-growth-chart"></canvas></div></div>
+            </div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card"><h3 class="card-title">Fixed Revenue</h3><div class="chart-container"><canvas id="comps-fixed-revenue-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Fixed Revenue Growth y/y</h3><div class="chart-container"><canvas id="comps-fixed-growth-chart"></canvas></div></div>
+            </div>
+
+            <div class="section-header">ARPU</div>
+            <div class="dashboard-grid comps-arpu-grid">
+                <div class="card"><h3 class="card-title">Telcos' Consolidated ARPU</h3><div class="chart-container compact-chart"><canvas id="comps-arpu-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Postpaid ARPU (ex-M2M)</h3><div class="chart-container compact-chart"><canvas id="comps-postpaid-arpu-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Prepaid ARPU</h3><div class="chart-container compact-chart"><canvas id="comps-prepaid-arpu-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Consolidated ARPU Growth</h3><div class="chart-container compact-chart"><canvas id="comps-arpu-growth-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Postpaid ARPU Growth (ex-M2M)</h3><div class="chart-container compact-chart"><canvas id="comps-postpaid-arpu-growth-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Prepaid ARPU Growth</h3><div class="chart-container compact-chart"><canvas id="comps-prepaid-arpu-growth-chart"></canvas></div></div>
+            </div>
+
+            <div class="section-header">Margins and Investment</div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card"><h3 class="card-title">Capex-to-Sales</h3><div class="chart-container"><canvas id="comps-capex-sales-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">EBITDA Margin</h3><div class="chart-container"><canvas id="comps-ebitda-margin-chart"></canvas></div></div>
+            </div>
+            <div class="section-header">Brazil Telcos Financial Metrics</div>
+            <div class="dashboard-grid company-wide-grid">
+                <div class="card"><h3 class="card-title">Net Revenue</h3><div class="chart-container"><canvas id="big-net-revenue-nominal-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Net Revenue Growth y/y</h3><div class="chart-container"><canvas id="big-net-revenue-ratio-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">EBITDA</h3><div class="chart-container"><canvas id="big-ebitda-nominal-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">EBITDA Growth y/y</h3><div class="chart-container"><canvas id="big-ebitda-ratio-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">ND / Annualized EBITDA</h3><div class="chart-container"><canvas id="big-net-debt-ratio-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Capex</h3><div class="chart-container"><canvas id="big-capex-nominal-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">Capex-to-Sales</h3><div class="chart-container"><canvas id="big-capex-ratio-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">OpFCF</h3><div class="chart-container"><canvas id="big-opfcf-nominal-chart"></canvas></div></div>
+                <div class="card"><h3 class="card-title">OpFCF Margin</h3><div class="chart-container"><canvas id="big-opfcf-ratio-chart"></canvas></div></div>
+            </div>
+
+            </section>
+
+            <section id="comps-telcos-overview-view" class="comps-company-layout">
+                <div class="section-header">Telcos Overview</div>
+                <div class="filters-bar comps-range-bar">
+                    <div class="comps-period-toggle">
+                        <button class="comps-mode-btn active comps-quarter-toggle" id="overview-quarter-btn" type="button">Per Quarter</button>
+                        <button class="comps-mode-btn comps-year-toggle" id="overview-year-btn" type="button">Per Year</button>
+                    </div>
+                </div>
+                <div class="overview-anchor-bar" id="telcos-overview-top">
+                    <a class="overview-anchor-btn" href="#overview-net-revenue-growth-card">Net Revenue</a>
+                    <a class="overview-anchor-btn" href="#overview-ebitda-growth-card">EBITDA</a>
+                    <a class="overview-anchor-btn" href="#overview-net-income-growth-card">Net Income</a>
+                    <a class="overview-anchor-btn" href="#overview-capex-sales-card">Capex-to-Sales</a>
+                    <a class="overview-anchor-btn" href="#overview-opfcf-margin-card">OpFCF Margin</a>
+                </div>
+                <div class="card card-table telcos-history-card" id="overview-net-revenue-growth-card"><div class="card-title-row"><h3 class="card-title">Net Revenue Growth y/y</h3><a class="overview-back-btn" href="#telcos-overview-top">Back to top</a></div><div class="table-wrapper"><table id="overview-net-revenue-growth-table"><thead></thead><tbody></tbody></table></div></div>
+                <div class="card card-table telcos-history-card" id="overview-ebitda-growth-card"><div class="card-title-row"><h3 class="card-title">EBITDA Growth y/y</h3><a class="overview-back-btn" href="#telcos-overview-top">Back to top</a></div><div class="table-wrapper"><table id="overview-ebitda-growth-table"><thead></thead><tbody></tbody></table></div></div>
+                <div class="card card-table telcos-history-card" id="overview-net-income-growth-card"><div class="card-title-row"><h3 class="card-title">Net Income Growth y/y</h3><a class="overview-back-btn" href="#telcos-overview-top">Back to top</a></div><div class="table-wrapper"><table id="overview-net-income-growth-table"><thead></thead><tbody></tbody></table></div></div>
+                <div class="card card-table telcos-history-card" id="overview-capex-sales-card"><div class="card-title-row"><h3 class="card-title">Capex-to-Sales</h3><a class="overview-back-btn" href="#telcos-overview-top">Back to top</a></div><div class="table-wrapper"><table id="overview-capex-sales-table"><thead></thead><tbody></tbody></table></div></div>
+                <div class="card card-table telcos-history-card" id="overview-opfcf-margin-card"><div class="card-title-row"><h3 class="card-title">OpFCF Margin</h3><a class="overview-back-btn" href="#telcos-overview-top">Back to top</a></div><div class="table-wrapper"><table id="overview-opfcf-margin-table"><thead></thead><tbody></tbody></table></div></div>
+            </section>
+
+            <section id="comps-isps-view" class="comps-company-layout">
+                <div class="section-header">ISP Financial Overview</div>
+                <div class="filters-bar comps-range-bar">
+                    <div class="filter-group"><label>From</label><select id="comps-isp-from-select"></select></div>
+                    <div class="filter-group"><label>To</label><select id="comps-isp-to-select"></select></div>
+                    <div class="comps-period-toggle">
+                        <button class="comps-mode-btn active comps-quarter-toggle" id="isp-quarter-btn" type="button">Per Quarter</button>
+                        <button class="comps-mode-btn comps-year-toggle" id="isp-year-btn" type="button">Per Year</button>
+                    </div>
+                </div>
+                <p class="warning" id="isp-data-warning" style="display:none"></p>
+                <div class="dashboard-grid company-wide-grid">
+                    <div class="card"><h3 class="card-title">Net Revenue</h3><div class="chart-container"><canvas id="isp-net-revenue-nominal-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">Net Revenue Growth y/y</h3><div class="chart-container"><canvas id="isp-net-revenue-ratio-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">EBITDA</h3><div class="chart-container"><canvas id="isp-ebitda-nominal-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">EBITDA Growth y/y</h3><div class="chart-container"><canvas id="isp-ebitda-ratio-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">Net Income</h3><div class="chart-container"><canvas id="isp-net-income-nominal-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">Net Income Growth y/y</h3><div class="chart-container"><canvas id="isp-net-income-ratio-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">ND / Annualized EBITDA</h3><div class="chart-container"><canvas id="isp-net-debt-ratio-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">Capex</h3><div class="chart-container"><canvas id="isp-capex-nominal-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">Capex-to-Sales</h3><div class="chart-container"><canvas id="isp-capex-ratio-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">OpFCF</h3><div class="chart-container"><canvas id="isp-opfcf-nominal-chart"></canvas></div></div>
+                    <div class="card"><h3 class="card-title">OpFCF Margin</h3><div class="chart-container"><canvas id="isp-opfcf-ratio-chart"></canvas></div></div>
+                </div>
+            </section>
+
+            <section id="comps-company-view" class="comps-company-view">
+                <div id="comps-company-placeholder" class="card">
+                    <h3 class="card-title">Company View</h3>
+                    <p class="comps-placeholder">Select a company to see its financial profile and available Anatel operating data.</p>
+                </div>
+
+                <div id="comps-vivo-view" class="comps-company-layout">
+                    <div class="company-hero">
+                        <div>
+                            <span class="company-eyebrow">Company Specifics</span>
+                            <h2 id="company-specific-title">Vivo / Telefonica Brasil</h2>
+                            <p id="company-specific-subtitle">Financial series from Big Telcos Data and operational data from Anatel.</p>
+                        </div>
+                        <div class="company-hero-meta">
+                            <span>Operator</span>
+                            <strong id="company-specific-operator">Vivo</strong>
+                        </div>
+                    </div>
+
+                    <div class="comps-kpi-grid" id="company-kpi-grid">
+                        <div class="card comps-kpi-card"><span class="comps-kpi-label">2026E EV/EBITDA</span><strong id="vivo-kpi-ev-ebitda">-</strong></div>
+                        <div class="card comps-kpi-card"><span class="comps-kpi-label">2026E P/E</span><strong id="vivo-kpi-pe">-</strong></div>
+                        <div class="card comps-kpi-card"><span class="comps-kpi-label">2026E Dividend Yield</span><strong id="vivo-kpi-dividend">-</strong></div>
+                    </div>
+
+                    <div class="card card-table" id="company-valuation-card">
+                        <h3 class="card-title">Valuation Snapshot</h3>
+                        <div class="table-wrapper">
+                            <table id="vivo-valuation-table"><thead></thead><tbody></tbody></table>
+                        </div>
+                    </div>
+
+                    <div class="section-header">Financial Profile</div>
+                    <div class="filters-bar comps-range-bar">
+                        <div class="filter-group"><label>Financial From</label><select id="vivo-financial-from-select"></select></div>
+                        <div class="filter-group"><label>Financial To</label><select id="vivo-financial-to-select"></select></div>
+                    </div>
+                    <div class="dashboard-grid company-wide-grid">
+                        <div class="card company-financial-card" id="company-service-card"><h3 class="card-title">Service Revenue and Growth</h3><div class="chart-container"><canvas id="vivo-service-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-mobile-service-card"><h3 class="card-title">Mobile Service Revenue and Growth</h3><div class="chart-container"><canvas id="vivo-mobile-service-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-fixed-revenue-card"><h3 class="card-title">Fixed Line Revenue and Growth</h3><div class="chart-container"><canvas id="vivo-fixed-revenue-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-net-revenue-card"><h3 class="card-title">Net Revenue and Growth</h3><div class="chart-container"><canvas id="company-net-revenue-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-ebitda-card"><h3 class="card-title">EBITDA and Growth</h3><div class="chart-container"><canvas id="company-ebitda-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-net-income-card"><h3 class="card-title">Net Income and Growth</h3><div class="chart-container"><canvas id="company-net-income-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-net-debt-card"><h3 class="card-title">ND / Annualized EBITDA</h3><div class="chart-container"><canvas id="company-net-debt-ratio-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-capex-card"><h3 class="card-title">Capex and Capex-to-Sales</h3><div class="chart-container"><canvas id="vivo-capex-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-opfcf-card"><h3 class="card-title">OpFCF and OpFCF Margin</h3><div class="chart-container"><canvas id="vivo-opfcf-combo-chart"></canvas></div></div>
+                        <div class="card company-financial-card" id="company-arpu-card"><h3 class="card-title">ARPU</h3><div class="chart-container"><canvas id="vivo-arpu-chart"></canvas></div></div>
+                    </div>
+
+                    <div class="section-header" id="company-operational-header">Operational Profile - Anatel</div>
+                    <div class="filters-bar comps-range-bar" id="company-operational-filters">
+                        <div class="filter-group"><label>Operational From</label><select id="vivo-operational-from-select"></select></div>
+                        <div class="filter-group"><label>Operational To</label><select id="vivo-operational-to-select"></select></div>
+                        <label class="toggle-switch-label">
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="vivo-ftth-toggle">
+                                <span class="toggle-slider"></span>
+                            </span>
+                            FTTH Only
+                        </label>
+                    </div>
+                    <div class="dashboard-grid company-wide-grid">
+                        <div class="card" id="company-broadband-card"><h3 class="card-title">Broadband Accesses and Market Share</h3><div class="chart-container"><canvas id="vivo-broadband-combo-chart"></canvas></div></div>
+                        <div class="card" id="company-postpaid-card"><h3 class="card-title">Postpaid Accesses and Market Share (ex-M2M)</h3><div class="chart-container"><canvas id="vivo-postpaid-combo-chart"></canvas></div></div>
+                        <div class="card" id="company-prepaid-card"><h3 class="card-title">Prepaid Accesses and Market Share</h3><div class="chart-container"><canvas id="vivo-prepaid-combo-chart"></canvas></div></div>
+                    </div>
+                    <div class="card card-table" id="company-portability-card">
+                        <h3 class="card-title" id="company-portability-title">Net Portability vs. Peers</h3>
+                        <div class="table-wrapper">
+                            <table id="vivo-portability-table"><thead></thead><tbody></tbody></table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="anatel-main" class="main-content">
+            <nav class="tabs anatel-tabs">
+                <button class="tab anatel-tab active" data-anatel="broadband">Broadband</button>
+                <button class="tab anatel-tab" data-anatel="mobile">Mobile</button>
+                <button class="tab anatel-tab" data-anatel="portability">Portability</button>
+            </nav>
+
         <!-- ── BROADBAND SECTION ── -->
-        <div id="broadband-main" class="main-content active">
+        <div id="broadband-panel" class="anatel-content active">
             <div class="filters-bar">
                 <div class="filter-group">
                     <label>State</label>
@@ -122,7 +335,7 @@
         </div>
 
         <!-- ── MOBILE SECTION ── -->
-        <div id="mobile-main" class="main-content">
+        <div id="mobile-panel" class="anatel-content">
             <div class="filters-bar">
                 <div class="filter-group">
                     <label>State</label>
@@ -156,7 +369,7 @@
             </div>
 
             <!-- Pure Postpaid -->
-            <div class="section-header">Pure Postpaid — Vivo, Claro, TIM</div>
+            <div class="section-header">Pure Postpaid (ex-M2M) - Vivo, Claro, TIM</div>
             <div class="dashboard-grid">
                 <div class="card">
                     <h3 class="card-title">Total Accesses</h3>
@@ -191,7 +404,7 @@
         </div>
 
         <!-- ── PORTABILITY SECTION ── -->
-        <div id="portability-main" class="main-content">
+        <div id="portability-panel" class="anatel-content">
             <div class="filters-bar">
                 <div class="filter-group">
                     <label>State</label>
@@ -262,6 +475,7 @@
                 <div class="chart-container"><canvas id="port-breakdown-chart"></canvas></div>
             </div>
         </div>
+        </div>
     </main>
 
     <footer class="analysts-footer">
@@ -286,7 +500,10 @@
     <script src="/static/telecom/broadband.js"></script>
     <script src="/static/telecom/mobile.js"></script>
     <script src="/static/telecom/portability.js"></script>
+    <script src="/static/telecom/comps.js"></script>
     <script>
+        initComps();
+        window._compsLoaded = true;
         // Main tab switching
         document.querySelectorAll(".main-tab").forEach(tab => {
             tab.addEventListener("click", () => {
@@ -295,14 +512,35 @@
                 tab.classList.add("active");
                 const target = tab.dataset.main;
                 document.getElementById(target + "-main").classList.add("active");
-                if (target === "mobile" && !window._mobileLoaded) {
-                    initMobile();
-                    window._mobileLoaded = true;
+                if (target === "comps" && !window._compsLoaded) {
+                    initComps();
+                    window._compsLoaded = true;
                 }
-                if (target === "portability" && !window._portabilityLoaded) {
-                    initPortability();
-                    window._portabilityLoaded = true;
+                if (target === "anatel") {
+                    ensureAnatelSubpageLoaded(document.querySelector(".anatel-tab.active").dataset.anatel);
                 }
+            });
+        });
+
+        function ensureAnatelSubpageLoaded(target) {
+            if (target === "mobile" && !window._mobileLoaded) {
+                initMobile();
+                window._mobileLoaded = true;
+            }
+            if (target === "portability" && !window._portabilityLoaded) {
+                initPortability();
+                window._portabilityLoaded = true;
+            }
+        }
+
+        document.querySelectorAll(".anatel-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                document.querySelectorAll(".anatel-tab").forEach(t => t.classList.remove("active"));
+                document.querySelectorAll(".anatel-content").forEach(s => s.classList.remove("active"));
+                tab.classList.add("active");
+                const target = tab.dataset.anatel;
+                document.getElementById(target + "-panel").classList.add("active");
+                ensureAnatelSubpageLoaded(target);
             });
         });
     </script>

@@ -39,8 +39,8 @@
 
 <!-- Main tabs -->
 <nav class="tr-tab-bar">
-    <button class="tr-tab main-tab active" id="tab-buybacks" onclick="switchTab('buybacks')">Buybacks</button>
-    <button class="tr-tab main-tab" id="tab-insiders" onclick="switchTab('insiders')">Insiders</button>
+    <button class="tr-tab active" id="tab-buybacks" onclick="switchTab('buybacks')">Buybacks</button>
+    <button class="tr-tab" id="tab-insiders" onclick="switchTab('insiders')">Insiders</button>
 </nav>
 
 <!-- Filter bar -->
@@ -64,7 +64,8 @@
         </select>
     </div>
     <span id="filterCount" class="tr-filter-count"></span>
-    <button id="resetFiltersBtn" class="tr-reset-btn" onclick="resetFilters()" style="display:none">Reset Filters</button>
+    <span id="contextBadge" class="tr-context-badge">Top 10 — All Companies</span>
+    <button id="resetFiltersBtn" class="tr-reset-btn" onclick="resetFilters()" style="display:none">✕ Reset to Top 10</button>
 </div>
 
 <!-- Hint bar -->
@@ -109,12 +110,6 @@
 
 <!-- ── INSIDERS TAB ── -->
 <div class="tr-content" id="content-insiders">
-    <!-- Insider sort toggle -->
-    <div class="tr-sort-toggle">
-        <span class="tr-filter-label" style="margin-right:4px">Sort by</span>
-        <button class="tr-toggle active" id="inSortByPct" onclick="setInSort('pct')">By % Ownership</button>
-        <button class="tr-toggle" id="inSortByVolume" onclick="setInSort('volume')">By Amount</button>
-    </div>
 
     <div id="inMonthlyPeriodLabel"></div>
     <div id="inMonthlyBlock" class="tr-g3 tr-mt14"></div>

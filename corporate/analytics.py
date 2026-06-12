@@ -47,8 +47,8 @@ def build_analytics_tables(
             row["market_cap"] = None
             row["pct_market_cap"] = None
 
-    buying  = build_insiders_side(movements, BUY_OPERATIONS)
-    selling = build_insiders_side(movements, SELL_OPERATIONS)
+    buying  = build_insiders_side(movements, BUY_OPERATIONS,  cap_pct_at_100=False)
+    selling = build_insiders_side(movements, SELL_OPERATIONS, cap_pct_at_100=True)
     buying, selling = _filter_net_zero(buying, selling)
 
     return {
@@ -161,9 +161,11 @@ def _trs_paired_keys(movements: list[dict[str, Any]], latest: set[str]) -> set[t
 def build_insiders_side(
     movements: list[dict[str, Any]],
     operation_types: set[str],
+    cap_pct_at_100: bool = True,
 ) -> list[dict[str, Any]]:
     latest = _latest_protocols(movements, "consolidada")
     trs_paired = _trs_paired_keys(movements, latest)
+    group_initial_quantities = _build_group_initial_quantities(movements, latest, trs_paired)
 
     grouped: dict[tuple[str, str, str, str], dict[str, Any]] = defaultdict(
         lambda: {
@@ -182,8 +184,6 @@ def build_insiders_side(
             "sum_initial_quantity": 0.0,
         }
     )
-    initial_qty_seen: dict[tuple, set[tuple[str, str]]] = defaultdict(set)
-
     for movement in movements:
         if not is_insider_trade(movement, operation_types):
             continue
@@ -214,25 +214,69 @@ def build_insiders_side(
         item["financial_volume"] += financial_volume
         item["weighted_price_numerator"] += price_avg * quantity
         item["trade_count"] += 1
-        # Count initial_quantity once per (protocol, holder) to avoid double-counting
-        # when the same person has multiple operation rows in a single filing section,
-        # while correctly summing across all members of the organ group.
-        holder = str(movement.get("holder_name", "") or "")
-        person_key = (proto, holder)
-        if person_key not in initial_qty_seen[key]:
-            initial_qty_seen[key].add(person_key)
-            item["sum_initial_quantity"] += float(movement.get("initial_quantity") or 0)
 
     rows = finalize_grouped_rows(grouped.values(), shares_key="shares")
     for row in rows:
+        group_key = (
+            row.get("company_alias", ""),
+            row.get("delivery_year_month", ""),
+            row.get("reference_year_month", ""),
+            row.get("organ", ""),
+        )
+        row["sum_initial_quantity"] = round(float(group_initial_quantities.get(group_key, 0.0)), 5)
         siq = float(row.get("sum_initial_quantity") or 0)
         shares = float(row.get("shares") or 0)
         # Only show % when the denominator is plausible: initial holdings must be
         # at least as large as what was traded (selling more than you started with
         # is logically impossible and indicates a parsing mismatch between the
         # balance asset and the traded asset in the PDF).
-        row["pct_shares_traded"] = round(shares / siq * 100, 4) if siq > 0 and siq >= shares else None
+        valid = siq > 0 and (not cap_pct_at_100 or siq >= shares)
+        row["pct_shares_traded"] = round(shares / siq * 100, 4) if valid else None
     return rows
+
+
+def _build_group_initial_quantities(
+    movements: list[dict[str, Any]],
+    latest: set[str],
+    trs_paired: set[tuple],
+) -> dict[tuple[str, str, str, str], float]:
+    """Build a monthly denominator shared by buying and selling for each
+    (company, delivery_month, reference_month, organ).
+
+    We sum the initial position of each eligible equity class (ON/PN/Units/etc.)
+    exactly once per (protocol, holder, asset class), matching the same universe
+    of spot equity trades that feeds insider amount analytics.
+    """
+    grouped: dict[tuple[str, str, str, str], float] = defaultdict(float)
+    seen: dict[tuple[str, str, str, str], set[tuple[str, str, str]]] = defaultdict(set)
+    eligible_operations = BUY_OPERATIONS | SELL_OPERATIONS
+
+    for movement in movements:
+        if not is_insider_trade(movement, eligible_operations):
+            continue
+        proto = str(movement.get("protocol", ""))
+        if proto not in latest:
+            continue
+        qty = float(movement.get("quantity") or 0)
+        if (proto, qty) in trs_paired:
+            continue
+        delivery_ym = year_month(str(movement.get("delivery_date", "")))
+        reference_ym = year_month(str(movement.get("reference_date", "")))
+        organ = normalize_organ(movement)
+        if organ not in RELEVANT_INSIDER_ORGANS:
+            continue
+        asset_key = _eligible_equity_asset_key(movement)
+        if not asset_key:
+            continue
+        group_key = (movement.get("company_alias", ""), delivery_ym, reference_ym, organ)
+        holder = str(movement.get("holder_name", "") or "")
+        seen_key = (proto, holder, asset_key)
+        if seen_key in seen[group_key]:
+            continue
+        seen[group_key].add(seen_key)
+        grouped[group_key] += float(movement.get("initial_quantity") or 0)
+
+    return grouped
 
 
 def finalize_grouped_rows(
@@ -260,7 +304,7 @@ def finalize_grouped_rows(
 
 
 def is_buyback_trade(movement: dict[str, Any]) -> bool:
-    """Only count genuine spot purchases ('Compra à vista').
+    """Only count genuine spot equity repurchases ('Compra à vista' of Ações/Units).
 
     Excluded intentionally:
     - 'movimentacao': covers PLANO PARA OUTORGA DE AÇÕES (stock-grant plans that
@@ -277,6 +321,13 @@ def is_buyback_trade(movement: dict[str, Any]) -> bool:
     """
     operation_type = str(movement.get("operation_type", "")).casefold()
     details = _strip_accents(str(movement.get("details", "") or "")).casefold()
+    asset = _strip_accents(str(movement.get("asset", "") or "")).casefold()
+
+    # Asset must be equity. PDF page breaks can prepend broker/ticker text, so
+    # check all tokens instead of only the first one.
+    equity_tokens = {"acao", "acoes", "units", "unit"}
+    asset_ok = any(token in equity_tokens for token in asset.split())
+
     return (
         movement.get("document_kind") == "individual"
         and int(movement.get("is_buyback") or 0) == 1
@@ -285,6 +336,7 @@ def is_buyback_trade(movement: dict[str, Any]) -> bool:
         and float(movement.get("quantity") or 0) > 0
         and operation_type == "compra"
         and "termo" not in details
+        and asset_ok
     )
 
 
@@ -326,6 +378,17 @@ def is_insider_trade(movement: dict[str, Any], operation_types: set[str]) -> boo
         and asset_ok                    # excludes debentures, CRI/CRA, warrants, etc.
         and movement.get("quantity") is not None
     )
+
+
+def _eligible_equity_asset_key(movement: dict[str, Any]) -> str:
+    """Return the normalized equity asset key used in insider analytics."""
+    asset = _strip_accents(str(movement.get("asset", "") or "")).casefold()
+    tokens = asset.split()
+    if not tokens:
+        return ""
+    if tokens[0] not in {"acao", "acoes", "units", "unit"}:
+        return ""
+    return " ".join(tokens[:2]) if len(tokens) >= 2 else tokens[0]
 
 
 def _filter_net_zero(
