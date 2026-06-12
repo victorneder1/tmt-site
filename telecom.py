@@ -47,18 +47,28 @@ def api_comps():
         return jsonify({"error": str(exc)}), 500
 
 
-@telecom_bp.route("/api/upload-daily-comps", methods=["POST"])
-def api_upload_daily_comps():
+@telecom_bp.route("/api/upload-comps-files", methods=["POST"])
+def api_upload_comps_files():
     from app import UPLOAD_KEY
     key = request.headers.get("X-Upload-Key") or request.form.get("key")
     if key != UPLOAD_KEY:
         return jsonify({"error": "Unauthorized"}), 403
-    f = request.files.get("file")
-    if not f:
-        return jsonify({"error": "No file provided"}), 400
-    dest = os.path.join(DATA_DIR, "daily comps template 2025 - site telecom.xlsx")
-    f.save(dest)
-    return jsonify({"status": "ok", "saved": os.path.basename(dest)})
+
+    saved = []
+    file_map = {
+        "big_telcos":   "Big Telcos Data.xlsx",
+        "daily_comps":  "daily comps template 2025 - site telecom.xlsx",
+        "valuation":    "telecom_comps_2026_2027.json",
+    }
+    for field, filename in file_map.items():
+        f = request.files.get(field)
+        if f and f.filename:
+            f.save(os.path.join(DATA_DIR, filename))
+            saved.append(filename)
+
+    if not saved:
+        return jsonify({"error": "No files provided"}), 400
+    return jsonify({"status": "ok", "saved": saved})
 
 
 # ── API: Broadband ──
