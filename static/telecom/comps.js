@@ -570,7 +570,16 @@ function renderISPValuationTable() {
 function populateOverviewRangeSelects() {
     const section = findSection("Net Revenue", "Net Revenue");
     const periods = section ? (compsPeriodMode === "year" ? annualPeriodsFrom(section.periods) : section.periods) : [];
-    fillRangeSelect("overview-from-select", "overview-to-select", periods, periods.length, TELCOS_OVERVIEW_START);
+    const from = document.getElementById("overview-from-select");
+    const to = document.getElementById("overview-to-select");
+    from.innerHTML = "";
+    to.innerHTML = "";
+    periods.forEach(p => {
+        from.appendChild(new Option(fmtMonth(p), p));
+        to.appendChild(new Option(fmtMonth(p), p));
+    });
+    from.value = periods.includes(TELCOS_OVERVIEW_START) ? TELCOS_OVERVIEW_START : (periods[0] || "");
+    to.value = periods[periods.length - 1] || "";
 }
 
 function populateISPRangeSelects() {
