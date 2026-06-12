@@ -342,18 +342,19 @@ def _load_disk_cache(excel_path: Path, excel_mtime: float, valuation_path: Path 
     except Exception:
         return None
 
-    valuation_mtime = valuation_path.stat().st_mtime if valuation_path and valuation_path.exists() else None
-    global_comps_mtime = global_comps_path.stat().st_mtime if global_comps_path and global_comps_path.exists() else None
     meta = payload.get("_cache_meta", {})
+    if meta.get("version") != CACHE_VERSION:
+        return None
+
+    # Accept cross-machine caches: compare only filenames, not full paths.
+    # Mtimes differ when files are uploaded to a remote server, so we skip that check.
+    cached_excel_name = Path(meta.get("excel_path", "")).name
+    cached_val_name = Path(meta.get("valuation_path", "") or "").name
+    cached_global_name = Path(meta.get("global_comps_path", "") or "").name
     if (
-        meta.get("version") == CACHE_VERSION
-        and
-        meta.get("excel_path") == str(excel_path)
-        and meta.get("excel_mtime") == excel_mtime
-        and meta.get("valuation_path") == (str(valuation_path) if valuation_path else None)
-        and meta.get("valuation_mtime") == valuation_mtime
-        and meta.get("global_comps_path") == (str(global_comps_path) if global_comps_path else None)
-        and meta.get("global_comps_mtime") == global_comps_mtime
+        cached_excel_name == excel_path.name
+        and cached_val_name == (valuation_path.name if valuation_path else "")
+        and cached_global_name == (global_comps_path.name if global_comps_path else "")
     ):
         payload.pop("_cache_meta", None)
         return payload
