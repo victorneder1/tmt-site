@@ -84,6 +84,7 @@ async function initComps() {
     const response = await fetch("/telecom/api/comps");
     compsPayload = await response.json();
     if (compsPayload.error) return;
+    updateCompsLastUpdated();
 
     populateCompanySelect();
     populateExcelRangeSelects();
@@ -118,6 +119,14 @@ async function initComps() {
     populateISPRangeSelects();
     renderISPOverview();
     if (document.getElementById("comps-bb-share-chart")) await renderAnatelCharts();
+}
+
+function updateCompsLastUpdated() {
+    const el = document.getElementById("last-updated");
+    if (!el) return;
+    const lastModified = compsPayload.last_modified || compsPayload.global_telecom_comps?.last_modified;
+    if (!lastModified) return;
+    el.textContent = `Last Update: ${String(lastModified).slice(0, 10)}`;
 }
 
 function setCompsPeriodMode(mode) {
@@ -388,7 +397,7 @@ function renderValuationTable() {
     });
 
     appendValuationSpacer(tbody);
-    appendGlobalValuationGroup(tbody, "Bloomberg Global Telcos", globalCompanies);
+    appendGlobalValuationGroup(tbody, "Global Telcos", globalCompanies);
 }
 
 function appendValuationGroup(tbody, label, companies, medianLabel) {

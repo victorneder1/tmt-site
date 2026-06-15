@@ -6,8 +6,8 @@
     <title>BTG Pactual — TMT Dashboard</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/telecom/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="/static/vendor/chart.umd.min.js"></script>
+    <script src="/static/vendor/chartjs-plugin-datalabels.min.js"></script>
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-GCQKDDFYX7"></script>
     <script>
@@ -25,7 +25,9 @@
                 <h1 class="header-title">TMT Dashboard</h1>
             </div>
         </div>
-        <div class="header-right"></div>
+        <div class="header-right">
+            <span id="last-updated"></span>
+        </div>
     </header>
 
     <nav class="site-top-tabs" aria-label="Primary">
