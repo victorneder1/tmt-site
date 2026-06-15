@@ -191,7 +191,7 @@ def _load_daily_local_valuation_table() -> dict[str, Any]:
     if not path:
         return {"source_file": None, "generated_at": None, "companies": []}
 
-    wb = load_workbook(path, read_only=True, data_only=True, keep_links=False)
+    wb = load_workbook(path, read_only=False, data_only=True, keep_links=False)
     try:
         if "Valuation" not in wb.sheetnames:
             return {"source_file": path.name, "source_path": str(path), "companies": []}
@@ -280,7 +280,7 @@ def _load_global_telecom_comps() -> dict[str, Any]:
     if not path:
         return {"source_file": None, "generated_at": None, "companies": []}
 
-    wb = load_workbook(path, read_only=True, data_only=True, keep_links=False)
+    wb = load_workbook(path, read_only=False, data_only=True, keep_links=False)
     try:
         if "Comps" not in wb.sheetnames:
             return {
@@ -596,7 +596,7 @@ def load_telco_comps() -> dict[str, Any]:
         return cached
 
     try:
-        wb = load_workbook(path, read_only=True, data_only=True, keep_links=False)
+        wb = load_workbook(path, read_only=False, data_only=True, keep_links=False)
     except Exception as exc:
         stale = _load_stale_disk_cache(exc)
         if stale is not None:
