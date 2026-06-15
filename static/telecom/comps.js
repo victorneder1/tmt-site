@@ -31,12 +31,12 @@ const COMPS_COLORS = {
     TIM: "#003399",
     Claro: "#E31E24",
     AMX: "#E31E24",
-    Brisanet: "#FF8000",
+    Brisanet: "#D96E20",
     "Giga+": "#0098DB",
-    Vero: "#E91E8C",
+    Vero: "#D0388A",
     Tecpar: "#2D5F2D",
-    Desktop: "#D32F2F",
-    Unifique: "#00BCD4",
+    Desktop: "#BE4040",
+    Unifique: "#2AACBF",
     Others: "#9BAABF",
 };
 const COMBO_LINE_COLOR = "#123C69";

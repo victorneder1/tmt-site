@@ -7,8 +7,8 @@ const MOB_COLORS = {
     "Vivo":     "#7B2D8E",
     "Claro":    "#E31E24",
     "TIM":      "#003399",
-    "Brisanet": "#FF8000",
-    "Unifique": "#00BCD4",
+    "Brisanet": "#D96E20",
+    "Unifique": "#2AACBF",
     "Others":   "#999999",
 };
 
