@@ -370,6 +370,9 @@ def _load_disk_cache(excel_path: Path, excel_mtime: float, valuation_path: Path 
         return None
 
     payload.pop("_cache_meta", None)
+    payload["last_modified"] = datetime.fromtimestamp(
+        _latest_mtime(excel_path, valuation_path, global_comps_path)
+    ).strftime("%Y-%m-%d %H:%M")
     return payload
 
 
