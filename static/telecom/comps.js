@@ -344,8 +344,7 @@ function fmtMonth(m) {
 function fmtVal(value, metric) {
     const label = String(metric || "").toLowerCase();
     const isMultiple = label.includes("ev/") || label.includes("p/e") || label.includes("multiple");
-    const isPE = label.includes("p/e");
-    if (value === null || value === undefined || value === "") return isPE ? "n.a." : "-";
+    if (value === null || value === undefined || value === "") return "n.a.";
     if (typeof value === "string") return value;
     const isPct = label.includes("yield") || label.includes("growth") || label.includes("margin") ||
         label.includes("share") || label.includes("capex");
@@ -512,7 +511,7 @@ function appendMedianRow(tbody, label, companies) {
 
 function fmtMarketCap(company) {
     const value = company.market_cap;
-    if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+    if (typeof value !== "number" || !Number.isFinite(value)) return "n.a.";
     const currency = company.market_cap_currency || "";
     return `${currency} ${value.toLocaleString("en-US", { maximumFractionDigits: 0 })} mn`.trim();
 }
