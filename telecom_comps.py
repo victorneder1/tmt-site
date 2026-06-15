@@ -58,6 +58,15 @@ CACHE_FILE = DATA_DIR / "telco_comps_cache.json"
 CACHE_VERSION = 13
 
 
+def invalidate_telco_comps_cache(remove_disk: bool = True) -> None:
+    _CACHE.update({"path": None, "mtime": None, "payload": None})
+    if remove_disk:
+        try:
+            CACHE_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def _clean_text(value: Any) -> str:
     return str(value).strip() if value is not None else ""
 
@@ -345,6 +354,21 @@ def _load_disk_cache(excel_path: Path, excel_mtime: float, valuation_path: Path 
     meta = payload.get("_cache_meta", {})
     if meta.get("version") != CACHE_VERSION:
         return None
+    if meta.get("excel_path") != str(excel_path) or meta.get("excel_mtime") != excel_mtime:
+        return None
+
+    valuation_mtime = valuation_path.stat().st_mtime if valuation_path and valuation_path.exists() else None
+    if meta.get("valuation_path") != (str(valuation_path) if valuation_path else None):
+        return None
+    if meta.get("valuation_mtime") != valuation_mtime:
+        return None
+
+    global_comps_mtime = global_comps_path.stat().st_mtime if global_comps_path and global_comps_path.exists() else None
+    if meta.get("global_comps_path") != (str(global_comps_path) if global_comps_path else None):
+        return None
+    if meta.get("global_comps_mtime") != global_comps_mtime:
+        return None
+
     payload.pop("_cache_meta", None)
     return payload
 
