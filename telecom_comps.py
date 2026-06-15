@@ -579,6 +579,13 @@ def _parse_company_cash_flow(ws) -> dict[str, Any] | None:
     return None
 
 
+def _latest_mtime(*paths: Path | None) -> float:
+    mtimes = [path.stat().st_mtime for path in paths if path and path.exists()]
+    if not mtimes:
+        return datetime.now().timestamp()
+    return max(mtimes)
+
+
 def load_telco_comps() -> dict[str, Any]:
     path = _resolve_excel_path()
     mtime = path.stat().st_mtime
@@ -611,7 +618,7 @@ def load_telco_comps() -> dict[str, Any]:
     payload = {
         "source_file": path.name,
         "source_path": str(path),
-        "last_modified": datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M"),
+        "last_modified": datetime.fromtimestamp(_latest_mtime(path, valuation_path, global_comps_path)).strftime("%Y-%m-%d %H:%M"),
         "company_operator_map": COMPANY_OPERATOR_MAP,
         "summary": _parse_summary(wb["Summary Tele.Comps"]) if "Summary Tele.Comps" in wb.sheetnames else {"columns": [], "rows": []},
         "valuation_2026_2027": _load_valuation_table(),
