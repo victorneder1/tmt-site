@@ -1901,7 +1901,7 @@ function baseOptions(formatter, config) {
             datalabels: {
                 display: ctx => {
                     if (ctx.dataset.data[ctx.dataIndex] === null || ctx.dataset.data[ctx.dataIndex] === undefined) return false;
-                    if (config.datalabels) return "auto";
+                    if (config.datalabels) return true;
                     if (config.denseLabels) return ctx.dataIndex === lastDataIndex(ctx.dataset.data);
                     if (config.companyLabels) return ctx.dataIndex === lastDataIndex(ctx.dataset.data);
                     if (config.endLabel === false) return false;
