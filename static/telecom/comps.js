@@ -13,7 +13,7 @@ const ISP_COMPANIES = ["Brisanet", "Unifique", "Desktop", "Vero"];
 const BRAZIL_FINANCIAL_COMPANIES = new Set(["Vivo", "TIM", "Claro", "Desktop", "Brisanet", "Unifique", "Vero"]);
 const ISP_START_PERIOD = "1Q21";
 const DEFAULT_QUARTER_START = "1Q24";
-const TELCOS_OVERVIEW_START = "1Q24";
+const OVERVIEW_DEFAULT_START = "1Q22";
 const DEFAULT_YEAR_START = "2022";
 const COMPS_DEFAULT_MONTH_START = "2025-01";
 const COMPANY_DISPLAY_ORDER = ["Vivo", "TIM", "Claro", "AMX", "Entel", "TEO", "Megacable", "Brisanet", "Unifique", "Desktop", "Vero"];
@@ -110,6 +110,9 @@ async function initComps() {
     ["comps-isp-from-select", "comps-isp-to-select"].forEach(id => {
         document.getElementById(id).addEventListener("change", renderISPOverview);
     });
+    ["overview-from-select", "overview-to-select"].forEach(id => {
+        document.getElementById(id).addEventListener("change", renderTelcosOverviewTables);
+    });
     ["vivo-operational-from-select", "vivo-operational-to-select", "vivo-ftth-toggle"].forEach(id => {
         document.getElementById(id).addEventListener("change", renderCompanyOperationalCharts);
     });
@@ -118,6 +121,8 @@ async function initComps() {
     renderAllFinancialViews();
     populateISPRangeSelects();
     renderISPOverview();
+    populateOverviewRangeSelects();
+    renderTelcosOverviewTables();
     if (document.getElementById("comps-bb-share-chart")) await renderAnatelCharts();
 }
 
@@ -166,6 +171,13 @@ function getPrimaryExcelPeriods() {
     ];
     const section = candidates.find(Boolean);
     return section ? section.periods : [];
+}
+
+function quarterSortKey(p) {
+    const m = String(p).match(/^([1-4])Q(\d{2}|\d{4})$/);
+    if (!m) return 0;
+    const year = m[2].length === 2 ? 2000 + parseInt(m[2]) : parseInt(m[2]);
+    return year * 10 + parseInt(m[1]);
 }
 
 function periodYear(period) {
@@ -577,6 +589,22 @@ function populateISPRangeSelects() {
     fillRangeSelect("comps-isp-from-select", "comps-isp-to-select", periods, 24, ISP_START_PERIOD);
 }
 
+function populateOverviewRangeSelects() {
+    const section = findSection("Net Revenue", "Net Revenue");
+    if (!section) return;
+    const periods = section.periods.filter(p => typeof p === "string" && /^[1-4]Q/.test(p) && quarterSortKey(p) >= quarterSortKey("1Q19"));
+    const from = document.getElementById("overview-from-select");
+    const to = document.getElementById("overview-to-select");
+    from.innerHTML = "";
+    to.innerHTML = "";
+    periods.forEach(p => {
+        from.appendChild(new Option(fmtMonth(p), p));
+        to.appendChild(new Option(fmtMonth(p), p));
+    });
+    from.value = periods.includes(OVERVIEW_DEFAULT_START) ? OVERVIEW_DEFAULT_START : periods[0] || "";
+    to.value = periods[periods.length - 1] || "";
+}
+
 function renderISPOverview() {
     renderPeerMetricSplit("Net Revenue", "Net Revenue", "Net Revenue Growth", "isp-net-revenue-nominal-chart", "isp-net-revenue-ratio-chart", ISP_COMPANIES);
     renderPeerMetricSplit("EBITDA", "EBITDA", "EBITDA Growth", "isp-ebitda-nominal-chart", "isp-ebitda-ratio-chart", ISP_COMPANIES);
@@ -925,13 +953,10 @@ function renderOverviewHistoryTable(tableId, section, companies, formatMetric) {
 }
 
 function overviewHistoryPeriods(section) {
-    let periods = section.periods;
-    if (compsPeriodMode === "year") {
-        const fromYear = DEFAULT_YEAR_START;
-        return annualPeriodsFrom(periods).filter(p => !fromYear || p >= fromYear);
-    }
-    const startIndex = periods.indexOf(TELCOS_OVERVIEW_START);
-    return periods.slice(startIndex >= 0 ? startIndex : 0);
+    const fromValue = (document.getElementById("overview-from-select") || {}).value || "";
+    const toValue = (document.getElementById("overview-to-select") || {}).value || "";
+    const { start, end } = getSliceForValues(section.periods, fromValue, toValue);
+    return section.periods.slice(start, end);
 }
 
 function renderTelcosOverviewTable() {
