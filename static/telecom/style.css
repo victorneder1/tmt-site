@@ -352,6 +352,81 @@ main {
     height: 420px;
 }
 
+/* ── Regional View: map + state panel ── */
+.ov-regional-layout {
+    display: flex;
+    gap: 24px;
+    align-items: stretch;
+}
+.ov-regional-map-col {
+    flex: 1 1 50%;
+    min-width: 0;
+}
+.ov-regional-panel-col {
+    flex: 1 1 50%;
+    min-width: 280px;
+    border-left: 1px solid #eef0f4;
+    padding-left: 22px;
+}
+@media (max-width: 900px) {
+    .ov-regional-layout { flex-direction: column; }
+    .ov-regional-panel-col { border-left: none; border-top: 1px solid #eef0f4; padding-left: 0; padding-top: 16px; }
+}
+.ov-state-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+.ov-state-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #001F62;
+}
+.ov-state-month {
+    font-size: 12px;
+    color: #8a93a6;
+}
+.ov-state-metric-box {
+    background: #f4f7fb;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px 0 16px;
+}
+.ov-state-metric-label { font-size: 12px; color: #6b7588; }
+.ov-state-metric-value { font-size: 22px; font-weight: 700; color: #001F62; }
+.ov-state-metric-rank { font-size: 12px; color: #6b7588; margin-left: 8px; }
+.ov-state-block { margin-bottom: 16px; }
+.ov-state-block h4 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #5b6478;
+    margin: 0 0 8px;
+    border-bottom: 1px solid #eef0f4;
+    padding-bottom: 4px;
+}
+.ov-state-row {
+    display: flex;
+    gap: 10px;
+    font-size: 13px;
+    padding: 3px 0;
+}
+.ov-state-row .lbl { color: #5b6478; min-width: 120px; flex: 0 0 auto; }
+.ov-state-row .val { font-weight: 600; color: #1a2233; }
+.ov-state-row .val.pos { color: #1f6f3f; }
+.ov-state-row .val.neg { color: #c0392b; }
+.ov-state-rank-list { font-size: 13px; }
+.ov-state-rank-list .op-dot {
+    display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px;
+}
+.ov-state-chart-row { display: flex; gap: 16px; margin-top: 10px; align-items: flex-start; }
+.ov-state-chart-box { flex: 1 1 50%; min-width: 0; }
+.ov-state-chart-cap { font-size: 11px; color: #6b7588; margin-bottom: 4px; }
+.ov-mini-donut { position: relative; height: 110px; }
+.ov-mini-spark { position: relative; height: 160px; }
+.ov-mini-portbars { position: relative; height: 160px; }
+
 .telcos-overview-grid {
     grid-template-columns: 1fr;
 }

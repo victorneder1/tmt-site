@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/telecom/style.css">
     <script src="/static/vendor/chart.umd.min.js"></script>
     <script src="/static/vendor/chartjs-plugin-datalabels.min.js"></script>
+    <script src="/static/vendor/d3.min.js"></script>
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-GCQKDDFYX7"></script>
     <script>
@@ -252,13 +253,121 @@
 
         <div id="anatel-main" class="main-content">
             <nav class="tabs anatel-tabs">
-                <button class="tab anatel-tab active" data-anatel="broadband">Broadband</button>
+                <button class="tab anatel-tab active" data-anatel="overview">Overview</button>
+                <button class="tab anatel-tab" data-anatel="broadband">Broadband</button>
                 <button class="tab anatel-tab" data-anatel="mobile">Mobile</button>
                 <button class="tab anatel-tab" data-anatel="portability">Portability</button>
             </nav>
 
         <!-- ── BROADBAND SECTION ── -->
-        <div id="broadband-panel" class="anatel-content active">
+        <div id="overview-panel" class="anatel-content active">
+            <div class="section-header">Regional View</div>
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>Metric</label>
+                    <select id="ov-map-metric"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Company</label>
+                    <select id="ov-map-company"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Month</label>
+                    <select id="ov-map-month"></select>
+                </div>
+            </div>
+            <div class="card">
+                <div class="ov-regional-layout">
+                    <div class="ov-regional-map-col">
+                        <h3 class="card-title" id="ov-map-title">Broadband Net Adds LTM by State</h3>
+                        <div id="ov-brazil-map-container" style="position:relative;height:520px;"></div>
+                    </div>
+                    <div class="ov-regional-panel-col">
+                        <div id="ov-state-panel"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title" id="ov-regional-bb-ltm-title">Broadband Net Adds LTM</h3>
+                    <div class="chart-container"><canvas id="ov-regional-bb-ltm-chart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title" id="ov-regional-postpaid-ltm-title">Postpaid Net Adds LTM</h3>
+                    <div class="chart-container"><canvas id="ov-regional-postpaid-ltm-chart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>State</label>
+                    <select id="ov-uf-select">
+                        <option value="">All Brazil</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>From</label>
+                    <select id="ov-from-select"></select>
+                </div>
+                <div class="filter-group">
+                    <label>To</label>
+                    <select id="ov-to-select"></select>
+                </div>
+            </div>
+
+            <div class="section-header">Market Size and Mix</div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">Broadband Total Accesses</h3>
+                    <div class="chart-container"><canvas id="ov-market-size-chart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Mobile Accesses by Segment</h3>
+                    <div class="chart-container"><canvas id="ov-mobile-mix-chart"></canvas></div>
+                </div>
+            </div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">FTTH Accesses and Penetration</h3>
+                    <div class="chart-container"><canvas id="ov-ftth-chart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Broadband Net Adds</h3>
+                    <div class="chart-container"><canvas id="ov-bb-netadds-chart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="section-header">Competitive Momentum</div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">Broadband Net Adds LTM by Operator</h3>
+                    <div class="chart-container"><canvas id="ov-bb-ltm-chart"></canvas></div>
+                    <p class="chart-footnote" id="ov-bb-ltm-note"></p>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Broadband Market Share</h3>
+                    <div class="chart-container"><canvas id="ov-bb-share-change-chart"></canvas></div>
+                    <p class="chart-footnote" id="ov-bb-share-change-note"></p>
+                </div>
+            </div>
+
+            <div class="section-header">Mobile and Portability</div>
+            <div class="dashboard-grid comps-dashboard-grid">
+                <div class="card">
+                    <h3 class="card-title">Postpaid Net Adds LTM by Operator</h3>
+                    <div class="chart-container"><canvas id="ov-postpaid-ltm-chart"></canvas></div>
+                    <p class="chart-footnote" id="ov-postpaid-ltm-note"></p>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Net Portability LTM by Operator</h3>
+                    <div class="chart-container"><canvas id="ov-port-ltm-chart"></canvas></div>
+                    <p class="chart-footnote" id="ov-port-ltm-note"></p>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="broadband-panel" class="anatel-content">
             <div class="filters-bar">
                 <div class="filter-group">
                     <label>State</label>
@@ -500,6 +609,7 @@
     <script src="/static/telecom/broadband.js"></script>
     <script src="/static/telecom/mobile.js"></script>
     <script src="/static/telecom/portability.js"></script>
+    <script src="/static/telecom/overview.js?v=11"></script>
     <script src="/static/telecom/comps.js"></script>
     <script>
         initComps();
@@ -523,6 +633,10 @@
         });
 
         function ensureAnatelSubpageLoaded(target) {
+            if (target === "overview" && !window._overviewLoaded) {
+                initAnatelOverview();
+                window._overviewLoaded = true;
+            }
             if (target === "mobile" && !window._mobileLoaded) {
                 initMobile();
                 window._mobileLoaded = true;

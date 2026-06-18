@@ -218,3 +218,90 @@ def api_portability_operators():
     """).fetchall()
     conn.close()
     return jsonify([r["op"] for r in rows])
+
+
+@telecom_bp.route("/api/overview/regional")
+def api_overview_regional():
+    conn = get_db()
+    month_from = request.args.get("from", "")
+    month_to = request.args.get("to", "")
+
+    bb_query = """
+        SELECT
+            UF,
+            operator,
+            month,
+            SUM(accesses) AS accesses,
+            SUM(CASE WHEN tech = 'FTTH' THEN accesses ELSE 0 END) AS ftth_accesses
+        FROM broadband
+        WHERE 1=1
+    """
+    mob_query = """
+        SELECT UF, operator, month, segment, SUM(accesses) AS accesses
+        FROM mobile
+        WHERE segment != 'Excluded'
+    """
+    params = []
+    mob_params = []
+
+    if month_from:
+        bb_query += " AND month >= ?"
+        mob_query += " AND month >= ?"
+        params.append(month_from)
+        mob_params.append(month_from)
+    if month_to:
+        bb_query += " AND month <= ?"
+        mob_query += " AND month <= ?"
+        params.append(month_to)
+        mob_params.append(month_to)
+
+    bb_query += " GROUP BY UF, operator, month ORDER BY month, UF, operator"
+    mob_query += " GROUP BY UF, operator, month, segment ORDER BY month, UF, operator, segment"
+
+    port_query = "SELECT UF, giver, receiver, month, SUM(quantity) AS quantity FROM portability WHERE 1=1"
+    port_params = []
+    if month_from:
+        port_query += " AND month >= ?"
+        port_params.append(month_from)
+    if month_to:
+        port_query += " AND month <= ?"
+        port_params.append(month_to)
+    port_query += " GROUP BY UF, giver, receiver, month ORDER BY month, UF"
+
+    bb_rows = conn.execute(bb_query, params).fetchall()
+    mob_rows = conn.execute(mob_query, mob_params).fetchall()
+    port_rows = conn.execute(port_query, port_params).fetchall()
+    conn.close()
+
+    return jsonify({
+        "broadband": [
+            {
+                "UF": r["UF"],
+                "operator": r["operator"],
+                "month": r["month"],
+                "accesses": r["accesses"],
+                "ftth_accesses": r["ftth_accesses"],
+            }
+            for r in bb_rows
+        ],
+        "mobile": [
+            {
+                "UF": r["UF"],
+                "operator": r["operator"],
+                "month": r["month"],
+                "segment": r["segment"],
+                "accesses": r["accesses"],
+            }
+            for r in mob_rows
+        ],
+        "portability": [
+            {
+                "UF": r["UF"],
+                "giver": r["giver"],
+                "receiver": r["receiver"],
+                "month": r["month"],
+                "quantity": r["quantity"],
+            }
+            for r in port_rows
+        ],
+    })
