@@ -750,11 +750,92 @@ async function renderRegionalView() {
     document.getElementById("ov-map-title").textContent =
         `${metric.label}${metric.needsCompany || company !== "All" ? " — " + compLabel : ""} (${ovFmtMonth(month)})`;
 
+    // "All operators" + a share metric → market-share-leader map + national pie
+    if (company === "All" && (metric.key === "bb_share" || metric.key === "postpaid_share")) {
+        const ufLeader = ovComputeUfLeader(metric.key, month);
+        const inset = { kind: "donut", cap: "Brazil — share by operator", data: ovNationalShareData(metric.key, month) };
+        ovDrawLeaderMap(geo, ufLeader, inset);
+        ovRenderStatePanel(ovSelUf, month, metric, company, {});
+        return;
+    }
+
+    // "All operators" + net portability → portability-winner map + national bars
+    if (company === "All" && metric.key === "portability") {
+        const ufLeader = ovComputePortLeader(month);
+        const inset = { kind: "bars", cap: "Brazil — net portability LTM", data: ovNationalPortRanked(month) };
+        ovDrawLeaderMap(geo, ufLeader, inset);
+        ovRenderStatePanel(ovSelUf, month, metric, company, {});
+        return;
+    }
+
     const needsCompanyButAll = metric.needsCompany && company === "All";
     const ufData = needsCompanyButAll ? {} : ovComputeUfMetric(metric.key, company, month);
 
     ovDrawMap(geo, ufData, metric, needsCompanyButAll);
     ovRenderStatePanel(ovSelUf, month, metric, company, ufData);
+}
+
+// Leading operator per UF by market share (excludes the aggregate "Others").
+function ovComputeUfLeader(metricKey, month) {
+    const rows = metricKey === "postpaid_share"
+        ? ovRegionalData.mobile.filter(r => r.segment === "Postpaid")
+        : ovRegionalData.broadband;
+    const byUfOp = {}, totByUf = {};
+    rows.forEach(r => {
+        if (r.month !== month) return;
+        byUfOp[r.UF] = byUfOp[r.UF] || {};
+        byUfOp[r.UF][r.operator] = (byUfOp[r.UF][r.operator] || 0) + r.accesses;
+        totByUf[r.UF] = (totByUf[r.UF] || 0) + r.accesses;
+    });
+    const out = {};
+    Object.keys(byUfOp).forEach(uf => {
+        const ops = byUfOp[uf];
+        let best = null, bestV = -1;
+        Object.keys(ops).forEach(op => { if (op !== "Others" && ops[op] > bestV) { bestV = ops[op]; best = op; } });
+        out[uf] = { op: best, label: (totByUf[uf] ? (bestV / totByUf[uf] * 100).toFixed(1) : "0") + "%" };
+    });
+    return out;
+}
+
+function ovNationalShareData(metricKey, month) {
+    const rows = metricKey === "postpaid_share"
+        ? ovRegionalData.mobile.filter(r => r.segment === "Postpaid")
+        : ovRegionalData.broadband;
+    return ovShareDonutData(rows, month, "accesses", 5);
+}
+
+// Per-UF winner of net portability over the trailing 12 months (top net gainer).
+function ovComputePortLeader(month) {
+    const mIdx = ovAllMonths.indexOf(month);
+    const ltm = new Set(ovAllMonths.slice(Math.max(0, mIdx - 11), mIdx + 1));
+    const net = {};
+    ovRegionalData.portability.forEach(r => {
+        if (!ltm.has(r.month)) return;
+        net[r.UF] = net[r.UF] || {};
+        net[r.UF][r.receiver] = (net[r.UF][r.receiver] || 0) + r.quantity;
+        net[r.UF][r.giver] = (net[r.UF][r.giver] || 0) - r.quantity;
+    });
+    const out = {};
+    Object.keys(net).forEach(uf => {
+        const ops = net[uf];
+        let best = null, bestV = -Infinity;
+        Object.keys(ops).forEach(op => { if (op !== "Others" && ops[op] > bestV) { bestV = ops[op]; best = op; } });
+        out[uf] = { op: best, label: (bestV >= 0 ? "+" : "") + ovFmtFull(bestV) };
+    });
+    return out;
+}
+
+// National net portability LTM per operator, ranked (for the inset bars).
+function ovNationalPortRanked(month) {
+    const mIdx = ovAllMonths.indexOf(month);
+    const ltm = new Set(ovAllMonths.slice(Math.max(0, mIdx - 11), mIdx + 1));
+    const net = {};
+    ovRegionalData.portability.forEach(r => {
+        if (!ltm.has(r.month)) return;
+        net[r.receiver] = (net[r.receiver] || 0) + r.quantity;
+        net[r.giver] = (net[r.giver] || 0) - r.quantity;
+    });
+    return Object.entries(net).filter(([o]) => o !== "Others").sort((a, b) => b[1] - a[1]);
 }
 
 // ── Per-UF metric computation ──
@@ -912,6 +993,60 @@ function ovDrawLegend(svg, W, H, vals, metric) {
     }
     legG.append("text").attr("x", 0).attr("y", 24).attr("font-size", 10).attr("fill", "#777").text(lo);
     legG.append("text").attr("x", 150).attr("y", 24).attr("text-anchor", "end").attr("font-size", 10).attr("fill", "#777").text(hi);
+}
+
+// "All operators" view: color each state by its leading operator, with a
+// national operator-share donut inset (whose legend doubles as the map key).
+function ovDrawLeaderMap(geo, ufLeader, inset) {
+    const container = document.getElementById("ov-brazil-map-container");
+    container.innerHTML = "";
+    const W = container.getBoundingClientRect().width || 700;
+    const H = container.getBoundingClientRect().height || 480;
+    const svg = d3.select(container).append("svg").attr("width", W).attr("height", H);
+    const projection = d3.geoIdentity().reflectY(true).fitExtent([[10, 10], [W - 10, H - 10]], geo);
+    const pathGen = d3.geoPath().projection(projection);
+
+    const colorFn = uf => (ufLeader[uf] && ufLeader[uf].op) ? (OV_COLORS[ufLeader[uf].op] || "#999") : "#ddd";
+
+    const tip = d3.select(container).append("div").attr("class", "ov-map-tip")
+        .style("position", "absolute").style("background", "rgba(0,31,98,0.9)").style("color", "#fff")
+        .style("padding", "5px 10px").style("border-radius", "4px").style("font-size", "12px")
+        .style("pointer-events", "none").style("display", "none").style("white-space", "nowrap");
+
+    svg.selectAll("path")
+        .data(geo.features)
+        .join("path")
+        .attr("d", pathGen)
+        .attr("fill", d => colorFn(d.properties.uf))
+        .attr("stroke", d => d.properties.uf === ovSelUf ? "#001F62" : "#ffffff")
+        .attr("stroke-width", d => d.properties.uf === ovSelUf ? 2.2 : 0.6)
+        .style("cursor", "pointer")
+        .on("mouseover", function (event, d) {
+            const uf = d.properties.uf, l = ufLeader[uf];
+            tip.style("display", "block").html(`<b>${uf}</b> ${l && l.op ? l.op + " " + l.label : "n/a"}`);
+            d3.select(this).attr("stroke", "#001F62").attr("stroke-width", 2.2);
+        })
+        .on("mousemove", event => {
+            const rect = container.getBoundingClientRect();
+            tip.style("left", (event.clientX - rect.left + 14) + "px").style("top", (event.clientY - rect.top - 36) + "px");
+        })
+        .on("mouseout", function (event, d) {
+            tip.style("display", "none");
+            const sel = d.properties.uf === ovSelUf;
+            d3.select(this).attr("stroke", sel ? "#001F62" : "#ffffff").attr("stroke-width", sel ? 2.2 : 0.6);
+        })
+        .on("click", (event, d) => {
+            ovSelUf = d.properties.uf;
+            renderRegionalView().catch(e => console.error("[Map]", e));
+        });
+
+    // National inset (donut for share, bars for portability) — doubles as key.
+    const wrap = document.createElement("div");
+    wrap.className = "ov-nat-donut-inset" + (inset.kind === "bars" ? " ov-nat-bars" : "");
+    wrap.innerHTML = `<div class="ov-nat-donut-cap">${inset.cap}</div><div class="ov-nat-donut-canvas"><canvas id="ov-nat-inset"></canvas></div>`;
+    container.appendChild(wrap);
+    if (inset.kind === "bars") ovMiniPortBars("ov-nat-inset", inset.data);
+    else ovMiniDonut("ov-nat-inset", inset.data);
 }
 
 // ── State info panel ──

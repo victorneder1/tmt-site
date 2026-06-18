@@ -428,6 +428,20 @@ main {
 .ov-mini-donut { position: relative; height: 110px; }
 .ov-mini-spark { position: relative; height: 160px; }
 .ov-mini-portbars { position: relative; height: 160px; }
+.ov-nat-donut-inset {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    width: 250px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid #eef0f4;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+.ov-nat-donut-cap { font-size: 11px; color: #5b6478; font-weight: 600; margin-bottom: 4px; }
+.ov-nat-donut-canvas { position: relative; height: 120px; }
+.ov-nat-bars { width: 290px; }
+.ov-nat-bars .ov-nat-donut-canvas { height: 150px; }
 
 .telcos-overview-grid {
     grid-template-columns: 1fr;
