@@ -420,8 +420,10 @@ main {
 .ov-state-rank-list .op-dot {
     display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px;
 }
-.ov-state-chart-row { display: flex; gap: 16px; margin-top: 10px; align-items: flex-start; }
-.ov-state-chart-box { flex: 1 1 50%; min-width: 0; }
+.ov-state-chart-row { display: flex; gap: 10%; margin-top: 10px; align-items: flex-start; }
+.ov-state-chart-box { min-width: 0; }
+.ov-state-chart-row > .ov-state-chart-box:first-child { flex: 0 0 40%; }
+.ov-state-chart-row > .ov-state-chart-box:last-child { flex: 0 0 50%; }
 .ov-state-chart-cap { font-size: 11px; color: #6b7588; margin-bottom: 4px; }
 .ov-mini-donut { position: relative; height: 110px; }
 .ov-mini-spark { position: relative; height: 160px; }
