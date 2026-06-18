@@ -443,6 +443,34 @@ main {
 .ov-nat-bars { width: 290px; }
 .ov-nat-bars .ov-nat-donut-canvas { height: 150px; }
 
+/* Net Adds / Subscribers toggle on LTM operator charts */
+.ov-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+.ov-card-head .card-title { margin: 0; }
+.ov-chart-toggle {
+    display: inline-flex;
+    border: 1px solid #d4d9e2;
+    border-radius: 6px;
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+.ov-chart-toggle button {
+    border: none;
+    background: #fff;
+    color: #5b6478;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: inherit;
+}
+.ov-chart-toggle button + button { border-left: 1px solid #d4d9e2; }
+.ov-chart-toggle button.active { background: #001F62; color: #fff; }
+
 .telcos-overview-grid {
     grid-template-columns: 1fr;
 }

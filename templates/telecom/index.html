@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BTG Pactual — TMT Dashboard</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
-    <link rel="stylesheet" href="/static/telecom/style.css?v=3">
+    <link rel="stylesheet" href="/static/telecom/style.css?v=4">
     <script src="/static/vendor/chart.umd.min.js"></script>
     <script src="/static/vendor/chartjs-plugin-datalabels.min.js"></script>
     <script src="/static/vendor/d3.min.js"></script>
@@ -340,7 +340,13 @@
             <div class="section-header">Competitive Momentum</div>
             <div class="dashboard-grid comps-dashboard-grid">
                 <div class="card">
-                    <h3 class="card-title">Broadband Net Adds LTM by Operator</h3>
+                    <div class="ov-card-head">
+                        <h3 class="card-title" id="ov-bb-ltm-title">Broadband Net Adds LTM by Operator</h3>
+                        <div class="ov-chart-toggle" data-target="bb-ltm">
+                            <button class="active" data-mode="netadds" type="button">Net Adds</button>
+                            <button data-mode="subscribers" type="button">Subscribers</button>
+                        </div>
+                    </div>
                     <div class="chart-container"><canvas id="ov-bb-ltm-chart"></canvas></div>
                     <p class="chart-footnote" id="ov-bb-ltm-note"></p>
                 </div>
@@ -354,7 +360,13 @@
             <div class="section-header">Mobile and Portability</div>
             <div class="dashboard-grid comps-dashboard-grid">
                 <div class="card">
-                    <h3 class="card-title">Postpaid Net Adds LTM by Operator</h3>
+                    <div class="ov-card-head">
+                        <h3 class="card-title" id="ov-postpaid-ltm-title">Postpaid Net Adds LTM by Operator</h3>
+                        <div class="ov-chart-toggle" data-target="postpaid-ltm">
+                            <button class="active" data-mode="netadds" type="button">Net Adds</button>
+                            <button data-mode="subscribers" type="button">Subscribers</button>
+                        </div>
+                    </div>
                     <div class="chart-container"><canvas id="ov-postpaid-ltm-chart"></canvas></div>
                     <p class="chart-footnote" id="ov-postpaid-ltm-note"></p>
                 </div>
@@ -609,7 +621,7 @@
     <script src="/static/telecom/broadband.js"></script>
     <script src="/static/telecom/mobile.js"></script>
     <script src="/static/telecom/portability.js"></script>
-    <script src="/static/telecom/overview.js?v=12"></script>
+    <script src="/static/telecom/overview.js?v=13"></script>
     <script src="/static/telecom/comps.js"></script>
     <script>
         initComps();

@@ -38,6 +38,9 @@ const IBGE_TO_UF = {
 let ovBrazilGeo = null;
 let ovRegionalData = { broadband: [], mobile: [], portability: [] };
 let ovSelUf = "SP";
+let ovLtmCtx = { bbRows: [], mobileRows: [], displayMonths: [] };
+let ovBbLtmMode = "netadds";
+let ovPostpaidLtmMode = "netadds";
 
 const OV_MAP_METRICS = [
     { key: "bb_accesses",    label: "Broadband Accesses",     signed: false, needsCompany: false, fmt: "int" },
@@ -104,6 +107,22 @@ async function initAnatelOverview() {
     compSel.addEventListener("change", () => renderRegionalView().catch(e => console.error("[Map]", e)));
     document.getElementById("ov-map-month").addEventListener("change", () => renderRegionalView().catch(e => console.error("[Map]", e)));
 
+    document.querySelectorAll(".ov-chart-toggle button").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const toggle = btn.closest(".ov-chart-toggle");
+            toggle.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const mode = btn.dataset.mode;
+            if (toggle.dataset.target === "bb-ltm") {
+                ovBbLtmMode = mode;
+                renderBroadbandLtmChart(ovLtmCtx.bbRows, ovLtmCtx.displayMonths, mode);
+            } else if (toggle.dataset.target === "postpaid-ltm") {
+                ovPostpaidLtmMode = mode;
+                renderPostpaidLtmChart(ovLtmCtx.mobileRows, ovLtmCtx.displayMonths, mode);
+            }
+        });
+    });
+
     await loadAnatelOverview();
 }
 
@@ -164,13 +183,14 @@ async function loadAnatelOverview() {
 }
 
 function renderOverviewCharts(ctx) {
+    ovLtmCtx = { bbRows: ctx.bbRows, mobileRows: ctx.mobileRows, displayMonths: ctx.displayMonths };
     renderMarketSizeChart(ctx.bbRows, ctx.mobileRows, ctx.displayMonths);
     renderMobileMixChart(ctx.mobileRows, ctx.displayMonths);
     renderFtthChart(ctx.bbRows, ctx.ftthRows, ctx.displayMonths);
     renderBroadbandNetAddsChart(ctx.bbRows, ctx.displayMonths);
-    renderBroadbandLtmChart(ctx.bbRows, ctx.displayMonths);
+    renderBroadbandLtmChart(ctx.bbRows, ctx.displayMonths, ovBbLtmMode);
     renderBroadbandShareChangeChart(ctx.bbRows, ctx.displayMonths);
-    renderPostpaidLtmChart(ctx.mobileRows, ctx.displayMonths);
+    renderPostpaidLtmChart(ctx.mobileRows, ctx.displayMonths, ovPostpaidLtmMode);
     renderPortabilityLtmChart(ctx.portRows, ctx.displayMonths);
     renderRegionalView().catch(err => console.error("[Map]", err));
     renderRegionalBroadbandLtmChart(ctx.regionalRows.broadband || [], ctx.to);
@@ -517,19 +537,24 @@ function renderPostpaidShareChart(rows, months) {
     });
 }
 
-function renderBroadbandLtmChart(rows, displayMonths) {
+function renderBroadbandLtmChart(rows, displayMonths, mode) {
+    mode = mode || "netadds";
+    const subs = mode === "subscribers";
     const opMap = ovOperatorMonthMap(rows, "operator", "accesses");
     ovSetFootnote("ov-bb-ltm-note", "");
+    ovSetTitle("ov-bb-ltm-title", `Broadband ${subs ? "Subscribers" : "Net Adds LTM"} by Operator`);
     const ops = OV_BB_SHARE_OPS.filter(op => opMap[op]);
+    const months = subs ? displayMonths.filter(m => ops.some(op => opMap[op][m] !== undefined)) : displayMonths;
     const chartId = "ov-bb-ltm-chart";
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
         data: {
-            labels: displayMonths.map(ovFmtMonth),
+            labels: months.map(ovFmtMonth),
             datasets: ops.map(op => ({
                 label: op,
-                data: displayMonths.map(m => {
+                data: months.map(m => {
+                    if (subs) return opMap[op][m] !== undefined ? opMap[op][m] : null;
                     const mIdx = ovAllMonths.indexOf(m);
                     const prev = mIdx >= 12 ? ovAllMonths[mIdx - 12] : null;
                     if (!prev || opMap[op][prev] === undefined) return null;
@@ -540,13 +565,13 @@ function renderBroadbandLtmChart(rows, displayMonths) {
                 borderWidth: 2,
                 fill: false,
                 tension: 0.3,
-                pointRadius: displayMonths.length > 24 ? 0 : 3,
+                pointRadius: months.length > 24 ? 0 : 3,
                 hidden: op !== "Vivo",
             })),
         },
         options: ovLineOptions(
-            v => ovFmtThousands(v),
-            ctx => `${ctx.dataset.label}: ${ctx.raw >= 0 ? "+" : ""}${ovFmtThousands(ctx.raw)}`
+            v => subs ? ovFmtMillions(v) : ovFmtThousands(v),
+            ctx => `${ctx.dataset.label}: ${subs ? ovFmtMillions(ctx.raw) : (ctx.raw >= 0 ? "+" : "") + ovFmtThousands(ctx.raw)}`
         ),
     });
 }
@@ -578,12 +603,16 @@ function renderBroadbandShareChangeChart(rows, months) {
     });
 }
 
-function renderPostpaidLtmChart(rows, displayMonths) {
+function renderPostpaidLtmChart(rows, displayMonths, mode) {
+    mode = mode || "netadds";
+    const subs = mode === "subscribers";
     const postRows = rows.filter(r => r.segment === "Postpaid");
     const opMap = ovOperatorMonthMap(postRows, "operator", "accesses");
     ovSetFootnote("ov-postpaid-ltm-note", "");
+    ovSetTitle("ov-postpaid-ltm-title", `Postpaid ${subs ? "Subscribers" : "Net Adds LTM"} by Operator`);
     const ops = OV_POSTPAID_OPS.filter(op => opMap[op]);
     const validMonths = displayMonths.filter(m => {
+        if (subs) return ops.some(op => opMap[op][m] !== undefined);
         const mIdx = ovAllMonths.indexOf(m);
         const prev = mIdx >= 12 ? ovAllMonths[mIdx - 12] : null;
         return prev && ops.some(op => opMap[op][prev] !== undefined);
@@ -597,6 +626,7 @@ function renderPostpaidLtmChart(rows, displayMonths) {
             datasets: ops.map(op => ({
                 label: op,
                 data: validMonths.map(m => {
+                    if (subs) return opMap[op][m] !== undefined ? opMap[op][m] : null;
                     const mIdx = ovAllMonths.indexOf(m);
                     const prev = mIdx >= 12 ? ovAllMonths[mIdx - 12] : null;
                     if (!prev || opMap[op][prev] === undefined) return null;
@@ -612,8 +642,8 @@ function renderPostpaidLtmChart(rows, displayMonths) {
             })),
         },
         options: ovLineOptions(
-            v => ovFmtThousands(v),
-            ctx => `${ctx.dataset.label}: ${ctx.raw >= 0 ? "+" : ""}${ovFmtThousands(ctx.raw)}`
+            v => subs ? ovFmtMillions(v) : ovFmtThousands(v),
+            ctx => `${ctx.dataset.label}: ${subs ? ovFmtMillions(ctx.raw) : (ctx.raw >= 0 ? "+" : "") + ovFmtThousands(ctx.raw)}`
         ),
     });
 }
