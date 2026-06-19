@@ -572,6 +572,47 @@ main {
 }
 
 /* ── Summary Table ── */
+.ov-company-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.ov-company-buttons button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 5px 10px;
+    border: 1px solid #d9e0ea;
+    border-radius: 16px;
+    background: #ffffff;
+    color: #6b7b96;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.ov-company-buttons button.active {
+    border-color: var(--company-color);
+    color: #001F62;
+    background: #f6f9fd;
+}
+
+.ov-company-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--company-color);
+    opacity: 0.35;
+}
+
+.ov-company-buttons button.active .ov-company-dot {
+    opacity: 1;
+}
+
 .comps-mode-btn {
     padding: 8px 18px;
     border: 1px solid #195AB4;

@@ -37,6 +37,8 @@ const IBGE_TO_UF = {
 
 let ovBrazilGeo = null;
 let ovRegionalData = { broadband: [], mobile: [], portability: [] };
+let ovRegionalDataVersion = 0;
+let ovStatePanelRenderKey = "";
 let ovSelUf = "SP";
 let ovLtmCtx = { bbRows: [], mobileRows: [], displayMonths: [] };
 let ovBbLtmMode = "netadds";
@@ -169,6 +171,7 @@ async function loadAnatelOverview() {
         mobile: regionalRows.mobile || [],
         portability: regionalRows.portability || [],
     };
+    ovRegionalDataVersion += 1;
     const monthSel = document.getElementById("ov-map-month");
     const prevMonth = monthSel.value;
     monthSel.innerHTML = "";
@@ -252,6 +255,13 @@ function ovSetTitle(id, text) {
     if (el) el.textContent = text;
 }
 
+function ovRenderStatePanelIfNeeded(uf, month, metric, company, ufData) {
+    const nextKey = `${ovRegionalDataVersion}|${uf}|${month}`;
+    if (nextKey === ovStatePanelRenderKey) return;
+    ovStatePanelRenderKey = nextKey;
+    ovRenderStatePanel(uf, month, metric, company, ufData);
+}
+
 function ovLtmStartMonth(toMonth) {
     const toIdx = ovAllMonths.indexOf(toMonth);
     return toIdx >= 12 ? ovAllMonths[toIdx - 12] : null;
@@ -273,6 +283,57 @@ function ovLineOptions(yTickCb, tooltipCb, extraScales) {
         },
         scales,
     };
+}
+
+function ovCompanyLineOptions(yTickCb, tooltipCb, extraScales) {
+    const options = ovLineOptions(yTickCb, tooltipCb, extraScales);
+    options.plugins.legend.display = false;
+    return options;
+}
+
+function ovLatestNumeric(data) {
+    for (let i = data.length - 1; i >= 0; i--) {
+        const v = data[i];
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+    }
+    return null;
+}
+
+function ovApplyTopCompanies(datasets, count, options) {
+    const useAbs = options && options.absolute;
+    const top = datasets
+        .map(ds => ({ label: ds.label, value: ovLatestNumeric(ds.data) }))
+        .filter(item => item.value !== null)
+        .sort((a, b) => (useAbs ? Math.abs(b.value) - Math.abs(a.value) : b.value - a.value))
+        .slice(0, count)
+        .map(item => item.label);
+    const fallback = top.length ? top : datasets.slice(0, count).map(ds => ds.label);
+    const topSet = new Set(fallback);
+    datasets.forEach(ds => {
+        ds.hidden = !topSet.has(ds.label);
+    });
+}
+
+function ovRenderCompanyButtons(containerId, chartId) {
+    const container = document.getElementById(containerId);
+    const chart = ovCharts[chartId];
+    if (!container || !chart) return;
+    container.innerHTML = "";
+
+    chart.data.datasets.forEach((ds, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = chart.isDatasetVisible(idx) ? "active" : "";
+        btn.style.setProperty("--company-color", ds.borderColor || OV_COLORS.Others);
+        btn.innerHTML = `<span class="ov-company-dot"></span><span>${ds.label}</span>`;
+        btn.addEventListener("click", () => {
+            const nextVisible = !chart.isDatasetVisible(idx);
+            chart.setDatasetVisibility(idx, nextVisible);
+            btn.classList.toggle("active", nextVisible);
+            chart.update();
+        });
+        container.appendChild(btn);
+    });
 }
 
 function ovBarOptions(yTickCb, tooltipCb, stacked) {
@@ -546,61 +607,64 @@ function renderBroadbandLtmChart(rows, displayMonths, mode) {
     const ops = OV_BB_SHARE_OPS.filter(op => opMap[op]);
     const months = subs ? displayMonths.filter(m => ops.some(op => opMap[op][m] !== undefined)) : displayMonths;
     const chartId = "ov-bb-ltm-chart";
+    const datasets = ops.map(op => ({
+        label: op,
+        data: months.map(m => {
+            if (subs) return opMap[op][m] !== undefined ? opMap[op][m] : null;
+            const mIdx = ovAllMonths.indexOf(m);
+            const prev = mIdx >= 12 ? ovAllMonths[mIdx - 12] : null;
+            if (!prev || opMap[op][prev] === undefined) return null;
+            return (opMap[op][m] || 0) - opMap[op][prev];
+        }),
+        borderColor: OV_COLORS[op] || OV_COLORS.Others,
+        backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        pointRadius: months.length > 24 ? 0 : 3,
+    }));
+    ovApplyTopCompanies(datasets, 3);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
         data: {
             labels: months.map(ovFmtMonth),
-            datasets: ops.map(op => ({
-                label: op,
-                data: months.map(m => {
-                    if (subs) return opMap[op][m] !== undefined ? opMap[op][m] : null;
-                    const mIdx = ovAllMonths.indexOf(m);
-                    const prev = mIdx >= 12 ? ovAllMonths[mIdx - 12] : null;
-                    if (!prev || opMap[op][prev] === undefined) return null;
-                    return (opMap[op][m] || 0) - opMap[op][prev];
-                }),
-                borderColor: OV_COLORS[op] || OV_COLORS.Others,
-                backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
-                borderWidth: 2,
-                fill: false,
-                tension: 0.3,
-                pointRadius: months.length > 24 ? 0 : 3,
-                hidden: op !== "Vivo",
-            })),
+            datasets,
         },
-        options: ovLineOptions(
+        options: ovCompanyLineOptions(
             v => subs ? ovFmtMillions(v) : ovFmtThousands(v),
             ctx => `${ctx.dataset.label}: ${subs ? ovFmtMillions(ctx.raw) : (ctx.raw >= 0 ? "+" : "") + ovFmtThousands(ctx.raw)}`
         ),
     });
+    ovRenderCompanyButtons("ov-bb-ltm-buttons", chartId);
 }
 
 function renderBroadbandShareChangeChart(rows, months) {
     const totals = ovMonthTotals(rows, "accesses");
     const opMap = ovOperatorMonthMap(rows, "operator", "accesses");
     ovSetFootnote("ov-bb-share-change-note", "");
-    const BIG = ["Vivo", "Claro", "Nio"];
     const chartId = "ov-bb-share-change-chart";
+    const datasets = OV_BB_SHARE_OPS.filter(op => opMap[op]).map(op => ({
+        label: op,
+        data: months.map(m => totals[m] ? +(((opMap[op][m] || 0) / totals[m]) * 100).toFixed(1) : null),
+        borderColor: OV_COLORS[op] || OV_COLORS.Others,
+        backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        pointRadius: months.length > 24 ? 0 : 3,
+    }));
+    ovApplyTopCompanies(datasets, 3);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
         data: {
             labels: months.map(ovFmtMonth),
-            datasets: OV_BB_SHARE_OPS.filter(op => opMap[op]).map(op => ({
-                label: op,
-                data: months.map(m => totals[m] ? +(((opMap[op][m] || 0) / totals[m]) * 100).toFixed(1) : null),
-                borderColor: OV_COLORS[op] || OV_COLORS.Others,
-                backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
-                borderWidth: 2,
-                fill: false,
-                tension: 0.3,
-                pointRadius: months.length > 24 ? 0 : 3,
-                hidden: !BIG.includes(op),
-            })),
+            datasets,
         },
-        options: ovLineOptions(v => v + "%", ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`),
+        options: ovCompanyLineOptions(v => v + "%", ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`),
     });
+    ovRenderCompanyButtons("ov-bb-share-change-buttons", chartId);
 }
 
 function renderPostpaidLtmChart(rows, displayMonths, mode) {
@@ -618,34 +682,36 @@ function renderPostpaidLtmChart(rows, displayMonths, mode) {
         return prev && ops.some(op => opMap[op][prev] !== undefined);
     });
     const chartId = "ov-postpaid-ltm-chart";
+    const datasets = ops.map(op => ({
+        label: op,
+        data: validMonths.map(m => {
+            if (subs) return opMap[op][m] !== undefined ? opMap[op][m] : null;
+            const mIdx = ovAllMonths.indexOf(m);
+            const prev = mIdx >= 12 ? ovAllMonths[mIdx - 12] : null;
+            if (!prev || opMap[op][prev] === undefined) return null;
+            return (opMap[op][m] || 0) - opMap[op][prev];
+        }),
+        borderColor: OV_COLORS[op] || OV_COLORS.Others,
+        backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        pointRadius: validMonths.length > 24 ? 0 : 3,
+    }));
+    ovApplyTopCompanies(datasets, 3);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
         data: {
             labels: validMonths.map(ovFmtMonth),
-            datasets: ops.map(op => ({
-                label: op,
-                data: validMonths.map(m => {
-                    if (subs) return opMap[op][m] !== undefined ? opMap[op][m] : null;
-                    const mIdx = ovAllMonths.indexOf(m);
-                    const prev = mIdx >= 12 ? ovAllMonths[mIdx - 12] : null;
-                    if (!prev || opMap[op][prev] === undefined) return null;
-                    return (opMap[op][m] || 0) - opMap[op][prev];
-                }),
-                borderColor: OV_COLORS[op] || OV_COLORS.Others,
-                backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
-                borderWidth: 2,
-                fill: false,
-                tension: 0.3,
-                pointRadius: validMonths.length > 24 ? 0 : 3,
-                hidden: op !== "Vivo",
-            })),
+            datasets,
         },
-        options: ovLineOptions(
+        options: ovCompanyLineOptions(
             v => subs ? ovFmtMillions(v) : ovFmtThousands(v),
             ctx => `${ctx.dataset.label}: ${subs ? ovFmtMillions(ctx.raw) : (ctx.raw >= 0 ? "+" : "") + ovFmtThousands(ctx.raw)}`
         ),
     });
+    ovRenderCompanyButtons("ov-postpaid-ltm-buttons", chartId);
 }
 
 function renderPortabilityLtmChart(rows, displayMonths) {
@@ -657,33 +723,41 @@ function renderPortabilityLtmChart(rows, displayMonths) {
     });
     ovSetFootnote("ov-port-ltm-note", "");
     const ops = OV_PORT_OPS.filter(op => rows.some(r => r.receiver === op || r.giver === op));
+    const validMonths = displayMonths.filter(m => {
+        const mIdx = ovAllMonths.indexOf(m);
+        if (mIdx < 0) return false;
+        const ltmMonths = ovAllMonths.slice(Math.max(0, mIdx - 11), mIdx + 1);
+        return ltmMonths.some(lm => monthlyNet[lm]);
+    });
     const chartId = "ov-port-ltm-chart";
+    const datasets = ops.map(op => ({
+        label: op,
+        data: validMonths.map(m => {
+            const mIdx = ovAllMonths.indexOf(m);
+            const ltmMonths = ovAllMonths.slice(Math.max(0, mIdx - 11), mIdx + 1);
+            return ltmMonths.reduce((sum, lm) => sum + ((monthlyNet[lm] && monthlyNet[lm][op]) || 0), 0);
+        }),
+        borderColor: OV_COLORS[op] || OV_COLORS.Others,
+        backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        pointRadius: validMonths.length > 24 ? 0 : 3,
+    }));
+    ovApplyTopCompanies(datasets, 3, { absolute: true });
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
         data: {
-            labels: displayMonths.map(ovFmtMonth),
-            datasets: ops.map(op => ({
-                label: op,
-                data: displayMonths.map(m => {
-                    const mIdx = ovAllMonths.indexOf(m);
-                    const ltmMonths = ovAllMonths.slice(Math.max(0, mIdx - 11), mIdx + 1);
-                    return ltmMonths.reduce((sum, lm) => sum + ((monthlyNet[lm] && monthlyNet[lm][op]) || 0), 0);
-                }),
-                borderColor: OV_COLORS[op] || OV_COLORS.Others,
-                backgroundColor: (OV_COLORS[op] || OV_COLORS.Others) + "18",
-                borderWidth: 2,
-                fill: false,
-                tension: 0.3,
-                pointRadius: displayMonths.length > 24 ? 0 : 3,
-                hidden: op !== "Claro",
-            })),
+            labels: validMonths.map(ovFmtMonth),
+            datasets,
         },
-        options: ovLineOptions(
+        options: ovCompanyLineOptions(
             v => ovFmtThousands(v),
             ctx => `${ctx.dataset.label}: ${ctx.raw >= 0 ? "+" : ""}${ctx.raw.toLocaleString("en-US")}`
         ),
     });
+    ovRenderCompanyButtons("ov-port-ltm-buttons", chartId);
 }
 
 function renderRegionalBroadbandLtmChart(rows, toMonth) {
@@ -785,7 +859,7 @@ async function renderRegionalView() {
         const ufLeader = ovComputeUfLeader(metric.key, month);
         const inset = { kind: "donut", cap: "Brazil — share by operator", data: ovNationalShareData(metric.key, month) };
         ovDrawLeaderMap(geo, ufLeader, inset);
-        ovRenderStatePanel(ovSelUf, month, metric, company, {});
+        ovRenderStatePanelIfNeeded(ovSelUf, month, metric, company, {});
         return;
     }
 
@@ -794,7 +868,7 @@ async function renderRegionalView() {
         const ufLeader = ovComputePortLeader(month);
         const inset = { kind: "bars", cap: "Brazil — net portability LTM", data: ovNationalPortRanked(month) };
         ovDrawLeaderMap(geo, ufLeader, inset);
-        ovRenderStatePanel(ovSelUf, month, metric, company, {});
+        ovRenderStatePanelIfNeeded(ovSelUf, month, metric, company, {});
         return;
     }
 
@@ -802,7 +876,7 @@ async function renderRegionalView() {
     const ufData = needsCompanyButAll ? {} : ovComputeUfMetric(metric.key, company, month);
 
     ovDrawMap(geo, ufData, metric, needsCompanyButAll);
-    ovRenderStatePanel(ovSelUf, month, metric, company, ufData);
+    ovRenderStatePanelIfNeeded(ovSelUf, month, metric, company, ufData);
 }
 
 // Leading operator per UF by market share (excludes the aggregate "Others").
