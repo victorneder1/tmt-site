@@ -301,13 +301,16 @@ function ovLatestNumeric(data) {
 
 function ovApplyTopCompanies(datasets, count, options) {
     const useAbs = options && options.absolute;
+    const excludeLabels = new Set((options && options.excludeLabels) || []);
     const top = datasets
+        .filter(ds => !excludeLabels.has(ds.label))
         .map(ds => ({ label: ds.label, value: ovLatestNumeric(ds.data) }))
         .filter(item => item.value !== null)
         .sort((a, b) => (useAbs ? Math.abs(b.value) - Math.abs(a.value) : b.value - a.value))
         .slice(0, count)
         .map(item => item.label);
-    const fallback = top.length ? top : datasets.slice(0, count).map(ds => ds.label);
+    const fallbackPool = datasets.filter(ds => !excludeLabels.has(ds.label));
+    const fallback = top.length ? top : fallbackPool.slice(0, count).map(ds => ds.label);
     const topSet = new Set(fallback);
     datasets.forEach(ds => {
         ds.hidden = !topSet.has(ds.label);
@@ -623,7 +626,7 @@ function renderBroadbandLtmChart(rows, displayMonths, mode) {
         tension: 0.3,
         pointRadius: months.length > 24 ? 0 : 3,
     }));
-    ovApplyTopCompanies(datasets, 3);
+    ovApplyTopCompanies(datasets, 3, { excludeLabels: ["Others"] });
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
@@ -654,7 +657,7 @@ function renderBroadbandShareChangeChart(rows, months) {
         tension: 0.3,
         pointRadius: months.length > 24 ? 0 : 3,
     }));
-    ovApplyTopCompanies(datasets, 3);
+    ovApplyTopCompanies(datasets, 3, { excludeLabels: ["Others"] });
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
@@ -698,7 +701,7 @@ function renderPostpaidLtmChart(rows, displayMonths, mode) {
         tension: 0.3,
         pointRadius: validMonths.length > 24 ? 0 : 3,
     }));
-    ovApplyTopCompanies(datasets, 3);
+    ovApplyTopCompanies(datasets, 3, { excludeLabels: ["Others"] });
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
