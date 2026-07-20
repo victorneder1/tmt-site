@@ -1732,6 +1732,14 @@ function renderOperationalCombo(canvasId, months, rows, label, operator) {
         const total = rows.filter(r => r.month === month).reduce((sum, r) => sum + (r.accesses || 0), 0);
         return total ? companyAccesses / total : null;
     });
+    const othersShareData = months.map(month => {
+        const total = rows.filter(r => r.month === month).reduce((sum, r) => sum + (r.accesses || 0), 0);
+        const namedAccesses = rows
+            .filter(r => r.month === month && COMPS_OPS.includes(r.operator))
+            .reduce((sum, r) => sum + (r.accesses || 0), 0);
+        const othersAccesses = total - namedAccesses;
+        return total ? othersAccesses / total : null;
+    });
     destroyChart(canvasId);
     compsCharts[canvasId] = new Chart(document.getElementById(canvasId), {
         data: {
@@ -1758,6 +1766,22 @@ function renderOperationalCombo(canvasId, months, rows, label, operator) {
                     borderWidth: 2.5,
                     tension: 0.25,
                     pointRadius: 2.5,
+                    pointHoverRadius: 4,
+                    yAxisID: "y1",
+                    order: 1,
+                },
+                {
+                    type: "line",
+                    label: "Others market share",
+                    data: othersShareData,
+                    borderColor: COMPS_COLORS.Others,
+                    backgroundColor: "#ffffff",
+                    pointBorderColor: COMPS_COLORS.Others,
+                    pointBackgroundColor: "#ffffff",
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    tension: 0.25,
+                    pointRadius: 2,
                     pointHoverRadius: 4,
                     yAxisID: "y1",
                     order: 1,

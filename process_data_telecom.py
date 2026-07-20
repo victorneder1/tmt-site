@@ -19,6 +19,7 @@ DB_PATH = os.path.join(DATA_DIR, "anatel.db")
 BB_DIR = os.path.join(BASE_DIR, "Database", "Broadband")
 MOB_DIR = os.path.join(BASE_DIR, "Database", "Mobile")
 PORT_CSV = os.path.join(BASE_DIR, "Database", "CSV_PORTABILIDADE.csv")
+MOBILE_BACKUP_DB_GLOB = os.path.join(DATA_DIR, "anatel.db.bak*")
 
 # ── Operator mappings ──
 # Old CSV: "Grupo Econômico" values
@@ -230,6 +231,106 @@ def process_broadband(year=None):
 
 # ── Mobile ──
 
+# Anatel's pivoted "_Colunas.csv" export for 2026 1S came back zeroed
+# (Jan/Fev) or near-empty (Mar, only 18 of 601k rows) for these months,
+# while the raw Ano/Mês row-based file has full correct data (cross-checked
+# 2026-07-10: totals match the pre-bug database exactly). These months are
+# supplied instead by Acessos_Telefonia_Movel_2026_JanFevMar_AnatelColunasBugFix.csv
+# (a Mês-filtered copy of the raw file, picked up by the extra_csvs branch
+# below). Remove this once Anatel republishes a fixed Colunas export.
+MOBILE_COLUNAS_KNOWN_BAD_MONTHS = {"2026-01", "2026-02", "2026-03"}
+
+
+def _mobile_bad_months_need_backup(df):
+    """Return True when Jan/Feb/Mar 2026 came in without real state coverage."""
+    if df is None or df.empty:
+        return True
+    for month in sorted(MOBILE_COLUNAS_KNOWN_BAD_MONTHS):
+        month_rows = df[df["month"] == month]
+        if month_rows.empty:
+            return True
+        real_rows = month_rows[~month_rows["UF"].isin(("", "N/A"))].copy()
+        if real_rows.empty:
+            return True
+        uf_totals = real_rows.groupby("UF", as_index=False)["accesses"].sum()
+        positive_ufs = {uf for uf in uf_totals.loc[uf_totals["accesses"] > 0, "UF"].tolist()}
+        if len(positive_ufs) < 27:
+            return True
+    return False
+
+
+def _load_mobile_bad_months_from_backup():
+    """Load Jan/Feb/Mar 2026 mobile rows from the newest backup with full UF coverage."""
+    backup_paths = sorted(glob.glob(MOBILE_BACKUP_DB_GLOB), reverse=True)
+    if not backup_paths:
+        return None
+
+    query = """
+        SELECT operator, UF, month, segment, accesses
+        FROM mobile
+        WHERE month IN ('2026-01', '2026-02', '2026-03')
+    """
+    for path in backup_paths:
+        try:
+            conn = sqlite3.connect(path)
+            df = pd.read_sql_query(query, conn)
+            conn.close()
+        except Exception:
+            continue
+        if _mobile_bad_months_need_backup(df):
+            continue
+        print(f"    Falling back to backup mobile Jan-Mar rows from {os.path.basename(path)}")
+        df["accesses"] = pd.to_numeric(df["accesses"], errors="coerce").fillna(0).astype(int)
+        return df
+    return None
+
+
+def _aggregate_mobile_extra_csv(fpath):
+    """Chunked aggregation of a row-based (Ano/Mês) mobile CSV into
+    (operator, UF, month, segment) -> accesses. Runs standalone so it can
+    be invoked in a fresh subprocess (see _aggregate_mobile_extra_csv_subprocess).
+
+    Only keeps months in MOBILE_COLUNAS_KNOWN_BAD_MONTHS: this source is
+    used to backfill months the pivoted "_Colunas.csv" export got wrong,
+    and the raw file it reads from may also contain other (already-good)
+    months, which must NOT be double-counted here."""
+    header_cols = pd.read_csv(fpath, sep=";", encoding="utf-8-sig", nrows=0).columns
+    ano_col = [c for c in header_cols if c == "Ano"][0]
+    mes_col = [c for c in header_cols if "s" in c and c not in ("Acessos",)
+               and c.startswith("M")][0]
+    acc_col = [c for c in header_cols if "Acessos" in c][0]
+    grupo_col = [c for c in header_cols if "Grupo" in c][0]
+    billing_col = [c for c in header_cols if "Cobran" in c][0]
+    usecols = [ano_col, mes_col, acc_col, grupo_col, billing_col, "UF", "Tipo de Produto"]
+
+    chunk_aggs = []
+    for df in pd.read_csv(fpath, sep=";", encoding="utf-8-sig", dtype=str,
+                           usecols=usecols, chunksize=200_000, low_memory=False):
+        df["month"] = df[ano_col].str.strip() + "-" + df[mes_col].str.strip().str.zfill(2)
+        df = df[df["month"].isin(MOBILE_COLUNAS_KNOWN_BAD_MONTHS)].copy()
+        if df.empty:
+            continue
+        # Some rows (mostly M2M product type) have no UF assigned in this raw
+        # export; groupby drops NaN keys by default, which was silently
+        # dropping their accesses from the totals. Keep them under a
+        # placeholder so the national total stays correct.
+        df["UF"] = df["UF"].fillna("N/A")
+        df["accesses"] = pd.to_numeric(df[acc_col], errors="coerce").fillna(0).astype(int)
+        df["operator"] = df[grupo_col].apply(lambda g: map_operator_exact(g, MOB_OPS_OLD))
+
+        is_post = df[billing_col].apply(lambda b: "s-pago" in str(b))
+        prod = df["Tipo de Produto"].fillna("")
+        is_excluded = prod.str.contains("M2M", na=False) | prod.str.startswith("PONTO", na=False)
+        df["segment"] = "Prepaid"
+        df.loc[is_post & ~is_excluded, "segment"] = "Postpaid"
+        df.loc[is_post & is_excluded, "segment"] = "Excluded"
+
+        chunk_aggs.append(df.groupby(["operator", "UF", "month", "segment"], as_index=False)["accesses"].sum())
+
+    agg = pd.concat(chunk_aggs, ignore_index=True)
+    return agg.groupby(["operator", "UF", "month", "segment"], as_index=False)["accesses"].sum()
+
+
 def process_mobile(year=None):
     """Process mobile files. If year is given, only process files for that year."""
     print("Processing Mobile data...")
@@ -271,42 +372,31 @@ def process_mobile(year=None):
         melted.loc[is_post & is_excluded, "segment"] = "Excluded"
 
         agg = melted.groupby(["operator", "UF", "month", "segment"], as_index=False)["accesses"].sum()
+        agg = agg[~agg["month"].isin(MOBILE_COLUNAS_KNOWN_BAD_MONTHS)]
         all_rows.append(agg)
 
-    # 2. Non-standard CSV files (Ano/Mês format instead of pivoted month columns)
+    # 2. Non-standard CSV files (Ano/Mês format instead of pivoted month columns).
+    # Read in chunks: these files can be very large (millions of rows) and
+    # loading all columns with dtype=str in one shot risks exhausting memory.
     all_mob_csvs = set(glob.glob(os.path.join(MOB_DIR, "*.csv")))
     standard_csvs = set(csv_files)
     extra_csvs = sorted(all_mob_csvs - standard_csvs)
     for fpath in extra_csvs:
         fname = os.path.basename(fpath)
         print(f"  Reading {fname} (row-based format)...")
-        df = pd.read_csv(fpath, sep=";", encoding="utf-8-sig", dtype=str, low_memory=False)
-
-        # Build month from Ano + Mês columns
-        ano_col = [c for c in df.columns if c == "Ano"][0]
-        mes_col = [c for c in df.columns if "s" in c and c not in ("Acessos",)
-                   and c.startswith("M")][0]
-        df["month"] = df[ano_col].str.strip() + "-" + df[mes_col].str.strip().str.zfill(2)
-
-        acc_col = [c for c in df.columns if "Acessos" in c][0]
-        df["accesses"] = pd.to_numeric(df[acc_col], errors="coerce").fillna(0).astype(int)
-
-        grupo_col = [c for c in df.columns if "Grupo" in c][0]
-        billing_col = [c for c in df.columns if "Cobran" in c][0]
-        df["operator"] = df[grupo_col].apply(lambda g: map_operator_exact(g, MOB_OPS_OLD))
-
-        is_post = df[billing_col].apply(lambda b: "s-pago" in str(b))
-        prod = df["Tipo de Produto"].fillna("")
-        is_excluded = prod.str.contains("M2M", na=False) | prod.str.startswith("PONTO", na=False)
-        df["segment"] = "Prepaid"
-        df.loc[is_post & ~is_excluded, "segment"] = "Postpaid"
-        df.loc[is_post & is_excluded, "segment"] = "Excluded"
-
-        agg = df.groupby(["operator", "UF", "month", "segment"], as_index=False)["accesses"].sum()
+        agg = _aggregate_mobile_extra_csv(fpath)
+        print(f"    {fname}: {agg['accesses'].sum():,} accesses across {agg['month'].nunique()} month(s)")
         all_rows.append(agg)
 
     result = pd.concat(all_rows, ignore_index=True)
     result = result.groupby(["operator", "UF", "month", "segment"], as_index=False)["accesses"].sum()
+    bad_month_rows = result[result["month"].isin(MOBILE_COLUNAS_KNOWN_BAD_MONTHS)].copy()
+    if _mobile_bad_months_need_backup(bad_month_rows):
+        backup_rows = _load_mobile_bad_months_from_backup()
+        if backup_rows is not None:
+            result = result[~result["month"].isin(MOBILE_COLUNAS_KNOWN_BAD_MONTHS)].copy()
+            result = pd.concat([result, backup_rows], ignore_index=True)
+            result = result.groupby(["operator", "UF", "month", "segment"], as_index=False)["accesses"].sum()
     result = result.sort_values(["month", "operator", "UF", "segment"])
 
     print(f"  Total mobile rows: {len(result)}")
