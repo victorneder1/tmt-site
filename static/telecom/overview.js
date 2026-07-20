@@ -20,8 +20,8 @@ const OV_COLORS = {
     "Total": "#001F62",
 };
 
-const OV_BB_SHARE_OPS = ["Vivo", "Claro", "Nio", "Brisanet", "Giga+", "Vero", "Tecpar", "Desktop", "TIM", "Unifique", "Starlink"];
-const OV_POSTPAID_OPS = ["Vivo", "Claro", "TIM", "Brisanet", "Unifique"];
+const OV_BB_SHARE_OPS = ["Vivo", "Claro", "Nio", "Brisanet", "Giga+", "Vero", "Tecpar", "Desktop", "TIM", "Unifique", "Starlink", "Others"];
+const OV_POSTPAID_OPS = ["Vivo", "Claro", "TIM", "Brisanet", "Unifique", "Others"];
 const OV_PORT_OPS = ["Claro", "TIM", "Vivo", "Brisanet", "Unifique", "Oi"];
 
 let ovCharts = {};
@@ -311,6 +311,13 @@ function ovApplyTopCompanies(datasets, count, options) {
     const topSet = new Set(fallback);
     datasets.forEach(ds => {
         ds.hidden = !topSet.has(ds.label);
+    });
+}
+
+function ovKeepVisible(datasets, labels) {
+    const keep = new Set(labels || []);
+    datasets.forEach(ds => {
+        if (keep.has(ds.label)) ds.hidden = false;
     });
 }
 
@@ -624,6 +631,7 @@ function renderBroadbandLtmChart(rows, displayMonths, mode) {
         pointRadius: months.length > 24 ? 0 : 3,
     }));
     ovApplyTopCompanies(datasets, 3);
+    ovKeepVisible(datasets, ["Others"]);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
@@ -655,6 +663,7 @@ function renderBroadbandShareChangeChart(rows, months) {
         pointRadius: months.length > 24 ? 0 : 3,
     }));
     ovApplyTopCompanies(datasets, 3);
+    ovKeepVisible(datasets, ["Others"]);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
@@ -699,6 +708,7 @@ function renderPostpaidLtmChart(rows, displayMonths, mode) {
         pointRadius: validMonths.length > 24 ? 0 : 3,
     }));
     ovApplyTopCompanies(datasets, 3);
+    ovKeepVisible(datasets, ["Others"]);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
