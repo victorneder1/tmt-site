@@ -314,13 +314,6 @@ function ovApplyTopCompanies(datasets, count, options) {
     });
 }
 
-function ovKeepVisible(datasets, labels) {
-    const keep = new Set(labels || []);
-    datasets.forEach(ds => {
-        if (keep.has(ds.label)) ds.hidden = false;
-    });
-}
-
 function ovRenderCompanyButtons(containerId, chartId) {
     const container = document.getElementById(containerId);
     const chart = ovCharts[chartId];
@@ -631,7 +624,6 @@ function renderBroadbandLtmChart(rows, displayMonths, mode) {
         pointRadius: months.length > 24 ? 0 : 3,
     }));
     ovApplyTopCompanies(datasets, 3);
-    ovKeepVisible(datasets, ["Others"]);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
@@ -663,7 +655,6 @@ function renderBroadbandShareChangeChart(rows, months) {
         pointRadius: months.length > 24 ? 0 : 3,
     }));
     ovApplyTopCompanies(datasets, 3);
-    ovKeepVisible(datasets, ["Others"]);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
@@ -708,7 +699,6 @@ function renderPostpaidLtmChart(rows, displayMonths, mode) {
         pointRadius: validMonths.length > 24 ? 0 : 3,
     }));
     ovApplyTopCompanies(datasets, 3);
-    ovKeepVisible(datasets, ["Others"]);
     ovDestroy(chartId);
     ovCharts[chartId] = new Chart(document.getElementById(chartId), {
         type: "line",
