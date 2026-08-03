@@ -251,6 +251,19 @@
         ctx.restore();
     }
 
+    function colorForTableCell(cell) {
+        if (cell.className.includes("val-positive")) return "#16a34a";
+        if (cell.className.includes("val-negative-soft")) return "#b94a48";
+        if (cell.className.includes("val-negative")) return "#dc2626";
+        return "#1f2937";
+    }
+
+    function weightForTableCell(cell, isHead, isGroup, isSegment) {
+        if (isHead || isGroup || isSegment) return "700";
+        if (cell.className.includes("val-positive") || cell.className.includes("val-negative")) return "600";
+        return "400";
+    }
+
     function renderTableCard(card) {
         const table = card.querySelector(".table-wrapper table");
         const rows = Array.from(table.querySelectorAll("tr")).map(tr => ({
@@ -302,8 +315,8 @@
                     ctx.strokeRect(x, y, w, rowH);
                 }
 
-                ctx.fillStyle = isHead || isGroup ? "#ffffff" : isSegment ? "#001F62" : "#1f2937";
-                ctx.font = `${isHead || isGroup || isSegment ? "700" : "400"} ${isHead || isGroup || isSegment ? "12px" : "11px"} ${EXPORT_FONT}`;
+                ctx.fillStyle = isHead || isGroup ? "#ffffff" : isSegment ? "#001F62" : colorForTableCell(cell);
+                ctx.font = `${weightForTableCell(cell, isHead, isGroup, isSegment)} ${isHead || isGroup || isSegment ? "12px" : "11px"} ${EXPORT_FONT}`;
                 const align = isHead || colIdx > 0 ? "right" : "left";
                 let pad = align === "right" ? w - 10 : 10;
                 if (isMetric && colIdx === 0) pad = 20;
