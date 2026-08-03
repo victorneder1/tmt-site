@@ -372,6 +372,12 @@
             options: deepCloneConfig(chart.config.options || {}),
             plugins: chart.config.plugins || [],
         };
+        const datasetVisibility = (chart.data.datasets || []).map((_, idx) => chart.isDatasetVisible(idx));
+        if (config.data && Array.isArray(config.data.datasets)) {
+            config.data.datasets.forEach((dataset, idx) => {
+                dataset.hidden = datasetVisibility[idx] === false;
+            });
+        }
         config.options = config.options || {};
         config.options.responsive = false;
         config.options.maintainAspectRatio = false;
@@ -379,6 +385,9 @@
         config.options.devicePixelRatio = EXPORT_SCALE;
 
         const exportChart = new Chart(canvas, config);
+        datasetVisibility.forEach((visible, idx) => {
+            exportChart.setDatasetVisibility(idx, visible);
+        });
         exportChart.resize(width, height);
         exportChart.update("none");
         exportChart.render();
