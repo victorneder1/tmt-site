@@ -1,6 +1,7 @@
 (function () {
     const EXPORT_SELECTOR = "#anatel-main .anatel-content .card";
     const EXPORT_SCALE = 3;
+    const EXPORT_FONT = "'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
     function slugify(text) {
         return String(text || "anatel-card")
@@ -191,6 +192,15 @@
         button.disabled = true;
         button.classList.add("is-exporting");
 
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+            await Promise.all([
+                document.fonts.load(`400 12px ${EXPORT_FONT}`),
+                document.fonts.load(`600 12px ${EXPORT_FONT}`),
+                document.fonts.load(`700 15px ${EXPORT_FONT}`),
+            ]);
+        }
+
         const canvas = card.querySelector(".table-wrapper table")
             ? renderTableCard(card)
             : renderChartCard(card);
@@ -215,11 +225,11 @@
     function drawExportHeader(ctx, width, title) {
         const pad = 24;
         ctx.fillStyle = "#001F62";
-        ctx.font = "700 15px Arial, sans-serif";
+        ctx.font = `700 15px ${EXPORT_FONT}`;
         ctx.textAlign = "left";
         ctx.fillText(title, pad, 28);
         ctx.fillStyle = "#195AB4";
-        ctx.font = "700 12px Arial, sans-serif";
+        ctx.font = `700 12px ${EXPORT_FONT}`;
         ctx.textAlign = "right";
         ctx.fillText("TMT BTG Pactual", width - pad, 28);
         ctx.strokeStyle = "#195AB4";
@@ -274,7 +284,7 @@
                 const w = colWidths[colIdx];
                 ctx.strokeRect(x, y, w, rowH);
                 ctx.fillStyle = isHead ? "#ffffff" : "#1f2937";
-                ctx.font = `${isHead ? "700" : "500"} 11px Arial, sans-serif`;
+                ctx.font = `${isHead ? "700" : "400"} 11px ${EXPORT_FONT}`;
                 drawTextInCell(ctx, text, x, y, w, rowH, { align: colIdx >= 3 ? "right" : "left", pad: colIdx >= 3 ? w - 8 : 8 });
                 x += w;
             });
@@ -311,7 +321,7 @@
 
         let y = 64 + chartH + 14;
         if (legend.length) {
-            ctx.font = "700 11px Arial, sans-serif";
+            ctx.font = `700 11px ${EXPORT_FONT}`;
             ctx.textAlign = "left";
             legend.forEach((item, idx) => {
                 const col = idx % 4;
@@ -330,7 +340,7 @@
 
         if (footnote) {
             ctx.fillStyle = "#8a93a6";
-            ctx.font = "italic 11px Arial, sans-serif";
+            ctx.font = `italic 11px ${EXPORT_FONT}`;
             ctx.textAlign = "center";
             ctx.fillText(footnote, width / 2, y + 10);
         }
