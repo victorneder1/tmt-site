@@ -45,7 +45,7 @@
     function addExportButtons() {
         document.querySelectorAll(EXPORT_SELECTOR).forEach(card => {
             if (card.dataset.exportImageReady === "1") return;
-            if (!card.querySelector("canvas, table, svg, #ov-brazil-map-container, #ov-state-panel")) return;
+            if (!card.querySelector(".chart-container canvas, .table-wrapper table")) return;
 
             card.dataset.exportImageReady = "1";
             card.classList.add("exportable-card");
@@ -191,48 +191,163 @@
         button.disabled = true;
         button.classList.add("is-exporting");
 
-        const staging = document.createElement("div");
-        staging.className = "export-image-stage";
-        const clone = prepareClone(card);
-        staging.appendChild(clone);
-        document.body.appendChild(staging);
+        const canvas = card.querySelector(".table-wrapper table")
+            ? renderTableCard(card)
+            : renderChartCard(card);
+        await downloadCanvas(canvas, filenameFor(card));
 
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        button.classList.remove("is-exporting");
+        button.disabled = false;
+    }
 
-        const width = Math.ceil(clone.scrollWidth);
-        const height = Math.ceil(clone.scrollHeight);
-        const xhtml = new XMLSerializer().serializeToString(clone);
-        const svg = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-                <foreignObject width="100%" height="100%">
-                    <div xmlns="http://www.w3.org/1999/xhtml">${xhtml}</div>
-                </foreignObject>
-            </svg>
-        `;
-
-        const img = await imageFromSvg(svg);
+    function makeCanvas(width, height) {
         const canvas = document.createElement("canvas");
-        canvas.width = width * EXPORT_SCALE;
-        canvas.height = height * EXPORT_SCALE;
+        canvas.width = Math.ceil(width * EXPORT_SCALE);
+        canvas.height = Math.ceil(height * EXPORT_SCALE);
         const ctx = canvas.getContext("2d");
+        ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, width, height);
+        ctx.textBaseline = "middle";
+        return { canvas, ctx };
+    }
 
-        await new Promise((resolve, reject) => {
+    function drawExportHeader(ctx, width, title) {
+        const pad = 24;
+        ctx.fillStyle = "#001F62";
+        ctx.font = "700 15px Arial, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(title, pad, 28);
+        ctx.fillStyle = "#195AB4";
+        ctx.font = "700 12px Arial, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("TMT BTG Pactual", width - pad, 28);
+        ctx.strokeStyle = "#195AB4";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad, 48);
+        ctx.lineTo(width - pad, 48);
+        ctx.stroke();
+    }
+
+    function drawTextInCell(ctx, text, x, y, width, height, options) {
+        const pad = options && options.pad !== undefined ? options.pad : 8;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 1, y + 1, width - 2, height - 2);
+        ctx.clip();
+        ctx.textAlign = options && options.align ? options.align : "left";
+        ctx.fillText(String(text || ""), x + pad, y + height / 2);
+        ctx.restore();
+    }
+
+    function renderTableCard(card) {
+        const table = card.querySelector(".table-wrapper table");
+        const rows = Array.from(table.querySelectorAll("tr")).map(tr =>
+            Array.from(tr.children).map(cell => cell.innerText.trim().replace(/\s+/g, " "))
+        ).filter(row => row.length);
+        const colCount = Math.max(...rows.map(row => row.length));
+        const colWidths = Array.from({ length: colCount }, (_, idx) => {
+            const sample = rows.map(row => row[idx] || "");
+            const maxChars = Math.max(...sample.map(text => text.length), 8);
+            if (idx === 0) return Math.min(Math.max(maxChars * 7 + 22, 120), 230);
+            if (idx === 1 || idx === 2) return Math.min(Math.max(maxChars * 7 + 22, 100), 170);
+            return Math.min(Math.max(maxChars * 7 + 22, 78), 120);
+        });
+        const width = Math.max(860, colWidths.reduce((a, b) => a + b, 0) + 48);
+        const rowH = 28;
+        const headerH = 64;
+        const height = headerH + rows.length * rowH + 28;
+        const { canvas, ctx } = makeCanvas(width, height);
+
+        drawExportHeader(ctx, width, displayTitle(card));
+        let y = headerH;
+        rows.forEach((row, rowIdx) => {
+            const isHead = rowIdx < table.tHead?.rows.length;
+            ctx.fillStyle = isHead ? "#17365D" : (rowIdx % 2 ? "#ffffff" : "#f5f8fc");
+            ctx.fillRect(24, y, width - 48, rowH);
+            ctx.strokeStyle = "#d9e2f3";
+            ctx.lineWidth = 1;
+
+            let x = 24;
+            row.forEach((text, colIdx) => {
+                const w = colWidths[colIdx];
+                ctx.strokeRect(x, y, w, rowH);
+                ctx.fillStyle = isHead ? "#ffffff" : "#1f2937";
+                ctx.font = `${isHead ? "700" : "500"} 11px Arial, sans-serif`;
+                drawTextInCell(ctx, text, x, y, w, rowH, { align: colIdx >= 3 ? "right" : "left", pad: colIdx >= 3 ? w - 8 : 8 });
+                x += w;
+            });
+            y += rowH;
+        });
+        return canvas;
+    }
+
+    function activeLegendItems(card) {
+        return Array.from(card.querySelectorAll(".ov-company-buttons button.active")).map(btn => {
+            const label = btn.textContent.trim();
+            const color = btn.style.getPropertyValue("--company-color") || "#001F62";
+            return { label, color };
+        });
+    }
+
+    function renderChartCard(card) {
+        const sourceCanvas = card.querySelector(".chart-container canvas");
+        const rect = card.getBoundingClientRect();
+        const sourceRect = sourceCanvas.getBoundingClientRect();
+        const width = Math.max(860, Math.ceil(rect.width));
+        const chartW = width - 48;
+        const chartH = Math.max(280, Math.ceil(sourceRect.height * chartW / Math.max(sourceRect.width, 1)));
+        const legend = activeLegendItems(card);
+        const footnote = card.querySelector(".chart-footnote")?.innerText.trim() || "";
+        const legendRows = legend.length ? Math.ceil(legend.length / 4) : 0;
+        const legendH = legendRows * 24;
+        const footH = footnote ? 28 : 0;
+        const height = 64 + chartH + legendH + footH + 28;
+        const { canvas, ctx } = makeCanvas(width, height);
+
+        drawExportHeader(ctx, width, displayTitle(card));
+        ctx.drawImage(sourceCanvas, 24, 64, chartW, chartH);
+
+        let y = 64 + chartH + 14;
+        if (legend.length) {
+            ctx.font = "700 11px Arial, sans-serif";
+            ctx.textAlign = "left";
+            legend.forEach((item, idx) => {
+                const col = idx % 4;
+                const row = Math.floor(idx / 4);
+                const x = 28 + col * ((width - 56) / 4);
+                const yy = y + row * 24;
+                ctx.fillStyle = item.color;
+                ctx.beginPath();
+                ctx.arc(x, yy, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#4b5563";
+                ctx.fillText(item.label, x + 10, yy);
+            });
+            y += legendH;
+        }
+
+        if (footnote) {
+            ctx.fillStyle = "#8a93a6";
+            ctx.font = "italic 11px Arial, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(footnote, width / 2, y + 10);
+        }
+        return canvas;
+    }
+
+    function downloadCanvas(canvas, filename) {
+        return new Promise((resolve, reject) => {
             canvas.toBlob(blob => {
                 if (!blob) {
                     reject(new Error("PNG creation failed"));
                     return;
                 }
-                triggerDownload(blob, filenameFor(card));
+                triggerDownload(blob, filename);
                 resolve();
             }, "image/png");
         });
-
-        staging.remove();
-        button.classList.remove("is-exporting");
-        button.disabled = false;
     }
 
     function initExportImages() {
