@@ -253,16 +253,19 @@
 
     function renderTableCard(card) {
         const table = card.querySelector(".table-wrapper table");
-        const rows = Array.from(table.querySelectorAll("tr")).map(tr =>
-            Array.from(tr.children).map(cell => cell.innerText.trim().replace(/\s+/g, " "))
-        ).filter(row => row.length);
-        const colCount = Math.max(...rows.map(row => row.length));
+        const rows = Array.from(table.querySelectorAll("tr")).map(tr => ({
+            className: tr.className || "",
+            cells: Array.from(tr.children).map(cell => ({
+                text: cell.innerText.trim().replace(/\s+/g, " "),
+                colSpan: Math.max(1, cell.colSpan || 1),
+                className: cell.className || "",
+            })),
+        })).filter(row => row.cells.length);
+        const colCount = Math.max(...rows.map(row => row.cells.reduce((sum, cell) => sum + cell.colSpan, 0)));
+        const monthLikeHeader = rows[0] && rows[0].cells.length > 3;
         const colWidths = Array.from({ length: colCount }, (_, idx) => {
-            const sample = rows.map(row => row[idx] || "");
-            const maxChars = Math.max(...sample.map(text => text.length), 8);
-            if (idx === 0) return Math.min(Math.max(maxChars * 7 + 22, 120), 230);
-            if (idx === 1 || idx === 2) return Math.min(Math.max(maxChars * 7 + 22, 100), 170);
-            return Math.min(Math.max(maxChars * 7 + 22, 78), 120);
+            if (idx === 0) return monthLikeHeader ? 150 : 180;
+            return monthLikeHeader ? 112 : 120;
         });
         const width = Math.max(860, colWidths.reduce((a, b) => a + b, 0) + 48);
         const rowH = 28;
@@ -274,20 +277,49 @@
         let y = headerH;
         rows.forEach((row, rowIdx) => {
             const isHead = rowIdx < table.tHead?.rows.length;
-            ctx.fillStyle = isHead ? "#17365D" : (rowIdx % 2 ? "#ffffff" : "#f5f8fc");
+            const isSegment = row.className.includes("segment-label-row");
+            const isGroup = row.className.includes("op-group-header");
+            const isMetric = row.cells.some(cell => cell.className.includes("metric-label"));
+            const isLastMetric = row.className.includes("last-metric-row");
+            const rowFill = isHead ? "#17365D" : isGroup ? "#0a2a6e" : isSegment ? "#e8eff9" : (rowIdx % 2 ? "#ffffff" : "#f5f8fc");
+            ctx.fillStyle = rowFill;
             ctx.fillRect(24, y, width - 48, rowH);
             ctx.strokeStyle = "#d9e2f3";
             ctx.lineWidth = 1;
 
             let x = 24;
-            row.forEach((text, colIdx) => {
-                const w = colWidths[colIdx];
-                ctx.strokeRect(x, y, w, rowH);
-                ctx.fillStyle = isHead ? "#ffffff" : "#1f2937";
-                ctx.font = `${isHead ? "700" : "400"} 11px ${EXPORT_FONT}`;
-                drawTextInCell(ctx, text, x, y, w, rowH, { align: colIdx >= 3 ? "right" : "left", pad: colIdx >= 3 ? w - 8 : 8 });
+            let colIdx = 0;
+            row.cells.forEach(cell => {
+                const w = colWidths.slice(colIdx, colIdx + cell.colSpan).reduce((a, b) => a + b, 0);
+                if (isGroup || isSegment) {
+                    ctx.strokeStyle = isGroup ? "#1a3878" : "#d0dff0";
+                    ctx.beginPath();
+                    ctx.moveTo(24, y + rowH);
+                    ctx.lineTo(width - 24, y + rowH);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = "#d9e2f3";
+                    ctx.strokeRect(x, y, w, rowH);
+                }
+
+                ctx.fillStyle = isHead || isGroup ? "#ffffff" : isSegment ? "#001F62" : "#1f2937";
+                ctx.font = `${isHead || isGroup || isSegment ? "700" : "400"} ${isHead || isGroup || isSegment ? "12px" : "11px"} ${EXPORT_FONT}`;
+                const align = isHead || colIdx > 0 ? "right" : "left";
+                let pad = align === "right" ? w - 10 : 10;
+                if (isMetric && colIdx === 0) pad = 20;
+                drawTextInCell(ctx, cell.text, x, y, w, rowH, { align, pad });
                 x += w;
+                colIdx += cell.colSpan;
             });
+            if (isLastMetric) {
+                ctx.strokeStyle = "#d0d0d0";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(24, y + rowH);
+                ctx.lineTo(width - 24, y + rowH);
+                ctx.stroke();
+                ctx.lineWidth = 1;
+            }
             y += rowH;
         });
         return canvas;
