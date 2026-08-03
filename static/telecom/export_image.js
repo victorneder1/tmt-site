@@ -132,7 +132,7 @@
         );
         header.querySelector("strong").setAttribute(
             "style",
-            "flex:0 0 auto;font-size:12px;line-height:1.25;font-weight:700;color:#195AB4;white-space:nowrap;"
+            "flex:0 0 auto;font-size:12px;line-height:1.25;font-weight:400;color:#195AB4;white-space:nowrap;"
         );
         clone.insertBefore(header, clone.firstChild);
 
@@ -203,7 +203,7 @@
 
         const canvas = card.querySelector(".table-wrapper table")
             ? renderTableCard(card)
-            : renderChartCard(card);
+            : await renderChartCard(card);
         await downloadCanvas(canvas, filenameFor(card));
 
         button.classList.remove("is-exporting");
@@ -229,7 +229,7 @@
         ctx.textAlign = "left";
         ctx.fillText(title, pad, 28);
         ctx.fillStyle = "#195AB4";
-        ctx.font = `700 12px ${EXPORT_FONT}`;
+        ctx.font = `400 12px ${EXPORT_FONT}`;
         ctx.textAlign = "right";
         ctx.fillText("TMT BTG Pactual", width - pad, 28);
         ctx.strokeStyle = "#195AB4";
@@ -346,13 +346,56 @@
         });
     }
 
-    function renderChartCard(card) {
+    function deepCloneConfig(value) {
+        if (value === null || typeof value !== "object") return value;
+        if (Array.isArray(value)) return value.map(deepCloneConfig);
+        const clone = {};
+        Object.keys(value).forEach(key => {
+            const item = value[key];
+            clone[key] = typeof item === "function" ? item : deepCloneConfig(item);
+        });
+        return clone;
+    }
+
+    function highResChartCanvas(sourceCanvas, width, height) {
+        const chart = window.Chart && Chart.getChart ? Chart.getChart(sourceCanvas) : null;
+        if (!chart) return null;
+
+        const canvas = document.createElement("canvas");
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        canvas.width = Math.ceil(width * EXPORT_SCALE);
+        canvas.height = Math.ceil(height * EXPORT_SCALE);
+        const config = {
+            type: chart.config.type,
+            data: deepCloneConfig(chart.config.data),
+            options: deepCloneConfig(chart.config.options || {}),
+            plugins: chart.config.plugins || [],
+        };
+        config.options = config.options || {};
+        config.options.responsive = false;
+        config.options.maintainAspectRatio = false;
+        config.options.animation = false;
+        config.options.devicePixelRatio = EXPORT_SCALE;
+
+        const exportChart = new Chart(canvas, config);
+        exportChart.resize(width, height);
+        exportChart.update("none");
+        exportChart.render();
+        return { canvas, chart: exportChart };
+    }
+
+    async function renderChartCard(card) {
         const sourceCanvas = card.querySelector(".chart-container canvas");
         const rect = card.getBoundingClientRect();
         const sourceRect = sourceCanvas.getBoundingClientRect();
         const width = Math.max(860, Math.ceil(rect.width));
         const chartW = width - 48;
         const chartH = Math.max(280, Math.ceil(sourceRect.height * chartW / Math.max(sourceRect.width, 1)));
+        const hiW = Math.round(chartW);
+        const hiH = Math.round(chartH);
+        const highRes = highResChartCanvas(sourceCanvas, hiW, hiH);
+        const chartCanvas = highRes ? highRes.canvas : sourceCanvas;
         const legend = activeLegendItems(card);
         const footnote = card.querySelector(".chart-footnote")?.innerText.trim() || "";
         const legendRows = legend.length ? Math.ceil(legend.length / 4) : 0;
@@ -362,7 +405,8 @@
         const { canvas, ctx } = makeCanvas(width, height);
 
         drawExportHeader(ctx, width, displayTitle(card));
-        ctx.drawImage(sourceCanvas, 24, 64, chartW, chartH);
+        ctx.drawImage(chartCanvas, 24, 64, chartW, chartH);
+        if (highRes) highRes.chart.destroy();
 
         let y = 64 + chartH + 14;
         if (legend.length) {
