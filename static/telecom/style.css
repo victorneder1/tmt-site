@@ -330,6 +330,7 @@ main {
     padding: 18px 20px;
     box-shadow: 0 1px 4px rgba(0, 31, 98, 0.08);
     margin-bottom: 8px;
+    position: relative;
 }
 
 .card-title {
@@ -569,6 +570,104 @@ main {
     font-style: italic;
     text-align: center;
     font-family: 'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.exportable-card {
+    padding-top: 20px;
+}
+
+.card-export-image-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #d7deea;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #001F62;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: 0 1px 3px rgba(0, 31, 98, 0.08);
+}
+
+.card-export-image-btn:hover {
+    background: #f4f7fb;
+    border-color: #b9c5d8;
+}
+
+.card-export-image-btn:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.card-export-image-btn.in-flow {
+    position: static;
+    flex: 0 0 auto;
+}
+
+.card-export-image-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.card-export-image-btn.is-exporting svg {
+    animation: export-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes export-pulse {
+    from { opacity: 0.45; transform: translateY(-1px); }
+    to { opacity: 1; transform: translateY(1px); }
+}
+
+.export-image-stage {
+    position: fixed;
+    left: -100000px;
+    top: 0;
+    background: #ffffff;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.export-image-clone {
+    box-shadow: none !important;
+}
+
+.export-image-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 9px;
+    margin-bottom: 14px;
+    border-bottom: 2px solid #195AB4;
+    color: #001F62;
+    font-family: 'BTG Pactual', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.export-image-header span {
+    min-width: 0;
+    font-size: 15px;
+    line-height: 1.25;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.export-image-header strong {
+    flex: 0 0 auto;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 700;
+    color: #195AB4;
+    white-space: nowrap;
 }
 
 /* ── Summary Table ── */
