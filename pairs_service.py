@@ -214,6 +214,68 @@ def calculate_performance(entry_long, long_tickers, prices, entry_short, short_t
     return long_return - short_return
 
 
+def _as_list(value):
+    return value if isinstance(value, list) else [value]
+
+
+def _build_closed_pair_history_fallback(pair, from_d, to_d):
+    """Use stored entry/close prices when historical provider data is unavailable."""
+    if pair.get("status") != "closed" or not pair.get("closed_date"):
+        return []
+
+    close_long = pair.get("close_price_long")
+    close_short = pair.get("close_price_short")
+    if close_long is None or close_short is None:
+        return []
+
+    start_d = pair.get("inception_date") or pair.get("entry_date")
+    if not start_d:
+        return []
+    start_d = start_d.split("T")[0] if "T" in start_d else start_d[:10]
+    end_d = pair["closed_date"].split("T")[0] if "T" in pair["closed_date"] else pair["closed_date"][:10]
+
+    lt = _as_list(pair["long_ticker"])
+    st = _as_list(pair["short_ticker"])
+    entry_long = _as_list(pair["entry_price_long"])
+    entry_short = _as_list(pair["entry_price_short"])
+    close_long = _as_list(close_long)
+    close_short = _as_list(close_short)
+
+    if len(lt) != len(entry_long) or len(st) != len(entry_short):
+        return []
+    if len(lt) != len(close_long) or len(st) != len(close_short):
+        return []
+
+    def perf_for(long_prices, short_prices):
+        price_map = {}
+        for t, p in zip(lt, long_prices):
+            price_map[t] = p
+        for t, p in zip(st, short_prices):
+            price_map[t] = p
+        return calculate_performance(
+            pair["entry_price_long"], pair["long_ticker"], price_map,
+            pair["entry_price_short"], pair["short_ticker"],
+        )
+
+    points = [
+        {
+            "pair_id": pair["id"],
+            "performance": perf_for(entry_long, entry_short),
+            "timestamp": f"{start_d}T00:00:00.000Z",
+        },
+        {
+            "pair_id": pair["id"],
+            "performance": perf_for(close_long, close_short),
+            "timestamp": f"{end_d}T00:00:00.000Z",
+        },
+    ]
+
+    return [
+        point for point in points
+        if from_d <= point["timestamp"].split("T")[0] <= to_d
+    ]
+
+
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
@@ -228,8 +290,8 @@ def get_all_pairs():
     tickers = set()
     for p in pairs:
         if p["status"] == "open":
-            lt = p["long_ticker"] if isinstance(p["long_ticker"], list) else [p["long_ticker"]]
-            st = p["short_ticker"] if isinstance(p["short_ticker"], list) else [p["short_ticker"]]
+            lt = _as_list(p["long_ticker"])
+            st = _as_list(p["short_ticker"])
             tickers.update(lt)
             tickers.update(st)
 
@@ -238,8 +300,8 @@ def get_all_pairs():
     result = []
     for p in pairs:
         if p["status"] == "open":
-            lt = p["long_ticker"] if isinstance(p["long_ticker"], list) else [p["long_ticker"]]
-            st = p["short_ticker"] if isinstance(p["short_ticker"], list) else [p["short_ticker"]]
+            lt = _as_list(p["long_ticker"])
+            st = _as_list(p["short_ticker"])
 
             if isinstance(p["long_ticker"], list):
                 p["current_price_long"] = [prices.get(t, 0) for t in lt]
@@ -260,8 +322,8 @@ def get_all_pairs():
             p["current_price_long"] = p.get("close_price_long") or p["entry_price_long"]
             p["current_price_short"] = p.get("close_price_short") or p["entry_price_short"]
             close_prices = {}
-            lt = p["long_ticker"] if isinstance(p["long_ticker"], list) else [p["long_ticker"]]
-            st = p["short_ticker"] if isinstance(p["short_ticker"], list) else [p["short_ticker"]]
+            lt = _as_list(p["long_ticker"])
+            st = _as_list(p["short_ticker"])
             cpl = p["current_price_long"] if isinstance(p["current_price_long"], list) else [p["current_price_long"]]
             cps = p["current_price_short"] if isinstance(p["current_price_short"], list) else [p["current_price_short"]]
             for t, cp in zip(lt, cpl):
@@ -404,8 +466,8 @@ def update_pair_close(pair_id, closed_date, close_price_long=None, close_price_s
                 cpl_val = str(cpl[0]) if len(cpl) == 1 else json.dumps(cpl)
         else:
             # Fetch current prices as close prices
-            lt = pair["long_ticker"] if isinstance(pair["long_ticker"], list) else [pair["long_ticker"]]
-            st = pair["short_ticker"] if isinstance(pair["short_ticker"], list) else [pair["short_ticker"]]
+            lt = _as_list(pair["long_ticker"])
+            st = _as_list(pair["short_ticker"])
             prices = get_batch_prices(lt + st)
             if isinstance(pair["long_ticker"], list):
                 cpl_val = json.dumps([prices.get(t, 0) for t in lt])
@@ -417,8 +479,8 @@ def update_pair_close(pair_id, closed_date, close_price_long=None, close_price_s
                 cps = [float(p.strip()) for p in close_price_short.split(",")]
                 cps_val = str(cps[0]) if len(cps) == 1 else json.dumps(cps)
         else:
-            lt = pair["long_ticker"] if isinstance(pair["long_ticker"], list) else [pair["long_ticker"]]
-            st = pair["short_ticker"] if isinstance(pair["short_ticker"], list) else [pair["short_ticker"]]
+            lt = _as_list(pair["long_ticker"])
+            st = _as_list(pair["short_ticker"])
             prices = get_batch_prices(lt + st)
             if isinstance(pair["short_ticker"], list):
                 cps_val = json.dumps([prices.get(t, 0) for t in st])
@@ -475,8 +537,8 @@ def get_pair_history(pair_id, from_iso, to_iso):
     fetch_to = to_d + "T23:59:59.000Z"
     fetch_from_iso = fetch_from + "T00:00:00.000Z"
 
-    lt = pair["long_ticker"] if isinstance(pair["long_ticker"], list) else [pair["long_ticker"]]
-    st = pair["short_ticker"] if isinstance(pair["short_ticker"], list) else [pair["short_ticker"]]
+    lt = _as_list(pair["long_ticker"])
+    st = _as_list(pair["short_ticker"])
 
     # Fetch historical for all tickers
     long_histories = {}
@@ -490,7 +552,7 @@ def get_pair_history(pair_id, from_iso, to_iso):
             short_histories[t] = {d["timestamp"].split("T")[0]: d["price"] for d in f.result()}
 
     if not long_histories.get(lt[0]):
-        return []
+        return _build_closed_pair_history_fallback(pair, from_d, to_d)
 
     all_dates = sorted(long_histories[lt[0]].keys())
 
@@ -517,6 +579,9 @@ def get_pair_history(pair_id, from_iso, to_iso):
                 "performance": perf,
                 "timestamp": f"{date}T00:00:00.000Z",
             })
+
+    if not history:
+        return _build_closed_pair_history_fallback(pair, from_d, to_d)
 
     return history
 

@@ -2,6 +2,7 @@
 let pairsData = [];
 let pairsLoaded = false;
 let chartInstances = {};
+let closedPairsSignature = "";
 
 // Format price
 function formatPrice(price) {
@@ -235,11 +236,17 @@ function renderPairs() {
     const closedEmpty = document.getElementById("pairs-closed-empty");
 
     openList.innerHTML = "";
-    closedList.innerHTML = "";
 
     // Use server order (controlled via admin page)
     const openPairs = pairsData.filter(p => p.status === "open");
     const closedPairs = pairsData.filter(p => p.status === "closed");
+    const nextClosedSignature = JSON.stringify(closedPairs.map(p => ({
+        id: p.id,
+        closed_date: p.closed_date,
+        close_price_long: p.close_price_long,
+        close_price_short: p.close_price_short,
+        sort_order: p.sort_order,
+    })));
 
     openEmpty.style.display = openPairs.length ? "none" : "block";
     closedEmpty.style.display = closedPairs.length ? "none" : "block";
@@ -250,12 +257,16 @@ function renderPairs() {
         setTimeout(() => loadChart(p.id, `chart-${p.id}`), 100);
     });
 
-    closedPairs.forEach(p => {
-        const card = renderPairCard(p);
-        card.classList.add("closed");
-        closedList.appendChild(card);
-        setTimeout(() => loadChart(p.id, `chart-${p.id}`), 100);
-    });
+    if (nextClosedSignature !== closedPairsSignature) {
+        closedPairsSignature = nextClosedSignature;
+        closedList.innerHTML = "";
+        closedPairs.forEach(p => {
+            const card = renderPairCard(p);
+            card.classList.add("closed");
+            closedList.appendChild(card);
+            setTimeout(() => loadChart(p.id, `chart-${p.id}`), 100);
+        });
+    }
 }
 
 // ── Init pairs when tab is shown ──────────────────────────────────────────
