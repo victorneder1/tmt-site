@@ -38,6 +38,7 @@ def _set_cached_price(ticker, price):
 # ---------------------------------------------------------------------------
 YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
 YF_HEADERS = {"User-Agent": "Mozilla/5.0"}
+STOCKANALYSIS_HISTORY_URL = "https://stockanalysis.com/api/symbol/s/{ticker}/history"
 
 
 def get_current_price(ticker):
@@ -106,6 +107,40 @@ def get_historical_prices(ticker, from_iso, to_iso):
         return data
     except Exception:
         return []
+
+
+def get_historical_prices_stockanalysis(ticker, from_iso, to_iso):
+    """Fallback historical prices for symbols Yahoo no longer serves."""
+    from_d = from_iso.split("T")[0] if "T" in from_iso else from_iso[:10]
+    to_d = to_iso.split("T")[0] if "T" in to_iso else to_iso[:10]
+    try:
+        r = requests.get(
+            STOCKANALYSIS_HISTORY_URL.format(ticker=ticker.upper()),
+            params={"range": "Max", "period": "Daily"},
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Referer": f"https://stockanalysis.com/stocks/{ticker.lower()}/history/",
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        payload = r.json()
+        data = []
+        for point in payload.get("data", []):
+            date = point.get("t")
+            close = point.get("c")
+            if date and close is not None and from_d <= date <= to_d:
+                data.append({"timestamp": f"{date}T00:00:00.000Z", "price": close})
+        return sorted(data, key=lambda p: p["timestamp"])
+    except Exception:
+        return []
+
+
+def get_historical_prices_with_fallback(ticker, from_iso, to_iso):
+    data = get_historical_prices(ticker, from_iso, to_iso)
+    if data:
+        return data
+    return get_historical_prices_stockanalysis(ticker, from_iso, to_iso)
 
 
 # ---------------------------------------------------------------------------
@@ -544,8 +579,8 @@ def get_pair_history(pair_id, from_iso, to_iso):
     long_histories = {}
     short_histories = {}
     with ThreadPoolExecutor(max_workers=8) as pool:
-        long_futs = {t: pool.submit(get_historical_prices, t, fetch_from_iso, fetch_to) for t in lt}
-        short_futs = {t: pool.submit(get_historical_prices, t, fetch_from_iso, fetch_to) for t in st}
+        long_futs = {t: pool.submit(get_historical_prices_with_fallback, t, fetch_from_iso, fetch_to) for t in lt}
+        short_futs = {t: pool.submit(get_historical_prices_with_fallback, t, fetch_from_iso, fetch_to) for t in st}
         for t, f in long_futs.items():
             long_histories[t] = {d["timestamp"].split("T")[0]: d["price"] for d in f.result()}
         for t, f in short_futs.items():
