@@ -141,6 +141,7 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/podcasts")
 @app.route("/podcasts/")
 def podcasts():
     return render_template("podcasts.html", podcast_options=PODCAST_OPTIONS)
