@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-# If Railway provides a /persist volume, use it for all SQLite databases
-# so they survive deployments. Otherwise fall back to the in-container data/ dir.
-if [ -d "/persist" ]; then
+# If Railway provides a persistent volume, use it for all mutable data
+# so submissions and databases survive deployments.
+if [ -z "${DATA_DIR:-}" ] && [ -d "/data" ]; then
+    export DATA_DIR="/data"
+elif [ -z "${DATA_DIR:-}" ] && [ -d "/persist" ]; then
     export DATA_DIR="/persist/tmt-data"
 fi
 
