@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTG Pactual - TMT Podcasts</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="podcasts-page">
+    <header>
+        <div class="header-left">
+            <a href="https://www.btgpactual.com/research/" target="_blank">
+                <img src="/static/btg-logo.png" alt="BTG Pactual" class="header-logo">
+            </a>
+            <div class="header-title-wrap">
+                <h1 class="header-title">TMT Podcasts</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="podcasts-main">
+        <section class="podcasts-shell" aria-labelledby="podcasts-title">
+            <div class="podcasts-intro">
+                <p class="podcasts-kicker">BTG Pactual TMT</p>
+                <h2 id="podcasts-title">Podcast preferences</h2>
+                <p>Select the podcasts you would like to receive summaries for.</p>
+            </div>
+
+            <form id="podcasts-form" class="podcasts-form">
+                <div class="podcasts-fields">
+                    <label class="podcasts-field">
+                        <span>Name</span>
+                        <input type="text" name="name" autocomplete="name" required>
+                    </label>
+                    <label class="podcasts-field">
+                        <span>Email</span>
+                        <input type="email" name="email" autocomplete="email" required>
+                    </label>
+                </div>
+
+                <fieldset class="podcasts-options">
+                    <legend>Podcasts</legend>
+                    <div class="podcasts-grid">
+                        {% for podcast in podcast_options %}
+                        <label class="podcast-option">
+                            <input type="checkbox" name="podcasts" value="{{ podcast }}">
+                            <span>{{ podcast }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+
+                <div class="podcasts-actions">
+                    <p id="podcasts-status" role="status" aria-live="polite"></p>
+                    <button type="submit" class="podcasts-submit">Save Preferences</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script src="/static/podcasts.js"></script>
+</body>
+</html>

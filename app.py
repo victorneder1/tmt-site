@@ -26,6 +26,18 @@ ITSERVICES_LEGACY_FILE = os.path.join(BASE_DIR, "Screening_VisibleAlpha_ITServic
 SOFTWARE_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_Software_site.json")
 ITSERVICES_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_ITServices_site.json")
 LAST_UPDATED_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_last_updated.json")
+PODCAST_SUBMISSIONS_FILE = os.path.join(DATA_DIR, "podcast_submissions.json")
+PODCAST_OPTIONS = [
+    "All-In Podcast",
+    "Invest Like The Best",
+    "Dwarkesh Patel",
+    "The MAD Podcast",
+    "SemiAnalysis Weekly",
+    "The Circuit",
+    "Sharp Tech Podcast",
+    "Market Makers",
+    "Stock Pickers",
+]
 
 # Upload key for authentication — change this to a strong secret before deploying
 UPLOAD_KEY = os.environ.get("UPLOAD_KEY", "change-me-before-deploy")
@@ -44,8 +56,69 @@ def _load_json_file(path):
 def _write_json_file(path, payload):
     temp_path = f"{path}.tmp"
     with open(temp_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
+        json.dump(payload, f, ensure_ascii=False, indent=2)
     os.replace(temp_path, path)
+
+
+def _load_podcast_submissions():
+    if not os.path.exists(PODCAST_SUBMISSIONS_FILE):
+        return []
+    payload = _load_json_file(PODCAST_SUBMISSIONS_FILE)
+    if isinstance(payload, list):
+        return payload
+    return []
+
+
+def _normalize_email(email):
+    return str(email or "").strip().lower()
+
+
+def _validate_podcast_payload(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid payload")
+
+    name = str(payload.get("name") or "").strip()
+    email = _normalize_email(payload.get("email"))
+    podcasts = payload.get("podcasts")
+
+    if not name:
+        raise ValueError("Name is required")
+    if not email or "@" not in email:
+        raise ValueError("Valid email is required")
+    if not isinstance(podcasts, list):
+        raise ValueError("Podcasts must be a list")
+
+    cleaned_podcasts = []
+    for podcast in podcasts:
+        podcast = str(podcast or "").strip()
+        if podcast in PODCAST_OPTIONS and podcast not in cleaned_podcasts:
+            cleaned_podcasts.append(podcast)
+
+    if not cleaned_podcasts:
+        raise ValueError("Select at least one podcast")
+
+    return {
+        "name": name,
+        "email": email,
+        "podcasts": cleaned_podcasts,
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+def _upsert_podcast_submission(submission):
+    submissions = _load_podcast_submissions()
+    email = submission["email"]
+    replaced = False
+    for idx, existing in enumerate(submissions):
+        if _normalize_email(existing.get("email")) == email:
+            submissions[idx] = submission
+            replaced = True
+            break
+    if not replaced:
+        submissions.append(submission)
+    submissions.sort(key=lambda item: str(item.get("name", "")).lower())
+    _write_json_file(PODCAST_SUBMISSIONS_FILE, submissions)
+    return submission
 
 
 def _pick_latest_existing_path(*paths):
@@ -131,6 +204,29 @@ def root():
 @app.route("/global")
 def index():
     return render_template("index.html")
+
+
+@app.route("/podcasts/")
+def podcasts():
+    return render_template("podcasts.html", podcast_options=PODCAST_OPTIONS)
+
+
+@app.route("/api/podcasts", methods=["GET", "POST"])
+def api_podcasts():
+    if request.method == "GET":
+        return jsonify({
+            "options": PODCAST_OPTIONS,
+            "submissions": _load_podcast_submissions(),
+        })
+
+    try:
+        submission = _validate_podcast_payload(request.get_json(silent=True))
+        _upsert_podcast_submission(submission)
+        return jsonify({"ok": True, "submission": submission}), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/software")

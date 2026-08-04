@@ -1,0 +1,43 @@
+[
+  {
+    "name": "Gustavo Fabris",
+    "email": "gustavo.fabris@btgpactual.com",
+    "podcasts": [
+      "All-In Podcast",
+      "Invest Like The Best",
+      "Dwarkesh Patel",
+      "Market Makers",
+      "Stock Pickers"
+    ],
+    "updated_at": "2026-07-23T17:57:22.301268Z"
+  },
+  {
+    "name": "Lucas Marquiori",
+    "email": "lucas.marquiori@btgpactual.com",
+    "podcasts": [
+      "All-In Podcast",
+      "Invest Like The Best",
+      "Dwarkesh Patel",
+      "The MAD Podcast",
+      "SemiAnalysis Weekly",
+      "The Circuit",
+      "Sharp Tech Podcast",
+      "Market Makers",
+      "Stock Pickers"
+    ],
+    "updated_at": "2026-07-23T17:56:45.721861Z"
+  },
+  {
+    "name": "Rodrigo Almeida",
+    "email": "rodrigo-r.almeida@btgpactual.com",
+    "podcasts": [
+      "All-In Podcast",
+      "Invest Like The Best",
+      "Dwarkesh Patel",
+      "The MAD Podcast",
+      "Market Makers",
+      "Stock Pickers"
+    ],
+    "updated_at": "2026-07-23T17:57:45.000000Z"
+  }
+]
