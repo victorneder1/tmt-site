@@ -2,8 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.xlsx
-data/*
-!data/podcast_submissions.json
+data/
 update_log.txt
 .env
 *.env

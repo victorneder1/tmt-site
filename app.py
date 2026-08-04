@@ -10,6 +10,12 @@ import pairs_service
 import process_data_telecom
 from telecom import telecom_bp
 from corporate import create_tracker_bp
+from podcasts.storage import (
+    PODCAST_OPTIONS,
+    load_submissions,
+    upsert_submission,
+    validate_payload,
+)
 
 app = Flask(__name__)
 app.register_blueprint(telecom_bp)
@@ -27,20 +33,6 @@ ITSERVICES_LEGACY_FILE = os.path.join(BASE_DIR, "Screening_VisibleAlpha_ITServic
 SOFTWARE_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_Software_site.json")
 ITSERVICES_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_ITServices_site.json")
 LAST_UPDATED_CACHE_FILE = os.path.join(DATA_DIR, "Screening_VisibleAlpha_last_updated.json")
-PODCAST_SUBMISSIONS_FILENAME = "podcast_submissions.json"
-PODCAST_JOURNAL_FILENAME = "podcast_submissions.journal.jsonl"
-PODCAST_SUBMISSIONS_FILE = os.path.join(DATA_DIR, PODCAST_SUBMISSIONS_FILENAME)
-PODCAST_OPTIONS = [
-    "All-In Podcast",
-    "Invest Like The Best",
-    "Dwarkesh Patel",
-    "The MAD Podcast",
-    "SemiAnalysis Weekly",
-    "The Circuit",
-    "Sharp Tech Podcast",
-    "Market Makers",
-    "Stock Pickers",
-]
 
 # Upload key for authentication — change this to a strong secret before deploying
 UPLOAD_KEY = os.environ.get("UPLOAD_KEY", "change-me-before-deploy")
@@ -62,195 +54,6 @@ def _write_json_file(path, payload):
     with open(temp_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
     os.replace(temp_path, path)
-
-
-def _is_writable_dir(path):
-    try:
-        os.makedirs(path, exist_ok=True)
-        test_path = os.path.join(path, ".write-test.tmp")
-        with open(test_path, "w", encoding="utf-8") as f:
-            f.write("ok")
-        os.remove(test_path)
-        return True
-    except Exception:
-        return False
-
-
-def _podcast_storage_dirs():
-    candidates = [
-        DATA_DIR,
-        "/data",
-        os.path.join(BASE_DIR, "data"),
-    ]
-    dirs = []
-    seen = set()
-    for path in candidates:
-        if not path:
-            continue
-        abs_path = os.path.abspath(path)
-        key = os.path.normcase(abs_path)
-        if key in seen:
-            continue
-        seen.add(key)
-        if _is_writable_dir(abs_path):
-            dirs.append(abs_path)
-    return dirs
-
-
-def _podcast_snapshot_paths():
-    return [
-        os.path.join(path, PODCAST_SUBMISSIONS_FILENAME)
-        for path in _podcast_storage_dirs()
-    ]
-
-
-def _podcast_journal_paths():
-    return [
-        os.path.join(path, PODCAST_JOURNAL_FILENAME)
-        for path in _podcast_storage_dirs()
-    ]
-
-
-def _normalize_podcast_record(record):
-    if not isinstance(record, dict):
-        return None
-
-    name = str(record.get("name") or "").strip()
-    email = str(record.get("email") or "").strip()
-    podcasts = record.get("podcasts")
-    updated_at = str(record.get("updated_at") or "").strip()
-
-    if not name or not _normalize_email(email) or not isinstance(podcasts, list):
-        return None
-
-    cleaned_podcasts = []
-    for podcast in podcasts:
-        podcast = str(podcast or "").strip()
-        if podcast in PODCAST_OPTIONS and podcast not in cleaned_podcasts:
-            cleaned_podcasts.append(podcast)
-
-    if not cleaned_podcasts:
-        return None
-
-    return {
-        "name": name,
-        "email": email,
-        "podcasts": cleaned_podcasts,
-        "updated_at": updated_at or datetime.utcnow().isoformat() + "Z",
-    }
-
-
-def _merge_podcast_records(records):
-    by_email = {}
-    for record in records:
-        normalized = _normalize_podcast_record(record)
-        if not normalized:
-            continue
-        key = _normalize_email(normalized["email"])
-        current = by_email.get(key)
-        if not current or normalized["updated_at"] >= current.get("updated_at", ""):
-            by_email[key] = normalized
-    return sorted(by_email.values(), key=lambda item: str(item.get("name", "")).lower())
-
-
-def _load_podcast_submissions():
-    records = []
-
-    for path in _podcast_snapshot_paths():
-        if not os.path.exists(path):
-            continue
-        try:
-            payload = _load_json_file(path)
-            if isinstance(payload, list):
-                records.extend(payload)
-        except Exception:
-            continue
-
-    for path in _podcast_journal_paths():
-        if not os.path.exists(path):
-            continue
-        try:
-            with open(path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        records.append(json.loads(line))
-        except Exception:
-            continue
-
-    return _merge_podcast_records(records)
-
-
-def _normalize_email(email):
-    return str(email or "").strip().lower()
-
-
-def _validate_podcast_payload(payload):
-    if not isinstance(payload, dict):
-        raise ValueError("Invalid payload")
-
-    name = str(payload.get("name") or "").strip()
-    email = str(payload.get("email") or "").strip()
-    email_key = _normalize_email(email)
-    podcasts = payload.get("podcasts")
-
-    if not name:
-        raise ValueError("Name is required")
-    if not email_key or "@" not in email_key:
-        raise ValueError("Valid email is required")
-    if not isinstance(podcasts, list):
-        raise ValueError("Podcasts must be a list")
-
-    cleaned_podcasts = []
-    for podcast in podcasts:
-        podcast = str(podcast or "").strip()
-        if podcast in PODCAST_OPTIONS and podcast not in cleaned_podcasts:
-            cleaned_podcasts.append(podcast)
-
-    if not cleaned_podcasts:
-        raise ValueError("Select at least one podcast")
-
-    return {
-        "name": name,
-        "email": email,
-        "podcasts": cleaned_podcasts,
-        "updated_at": datetime.utcnow().isoformat() + "Z",
-    }
-
-
-def _upsert_podcast_submission(submission):
-    submissions = _load_podcast_submissions()
-    email = _normalize_email(submission["email"])
-    replaced = False
-    for idx, existing in enumerate(submissions):
-        if _normalize_email(existing.get("email")) == email:
-            submissions[idx] = submission
-            replaced = True
-            break
-    if not replaced:
-        submissions.append(submission)
-    submissions.sort(key=lambda item: str(item.get("name", "")).lower())
-
-    write_errors = []
-    for path in _podcast_journal_paths():
-        try:
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(submission, ensure_ascii=False) + "\n")
-        except Exception as e:
-            write_errors.append(f"{path}: {e}")
-
-    snapshot_written = False
-    for path in _podcast_snapshot_paths():
-        try:
-            _write_json_file(path, submissions)
-            snapshot_written = True
-        except Exception as e:
-            write_errors.append(f"{path}: {e}")
-
-    if not snapshot_written:
-        raise RuntimeError("; ".join(write_errors) or "Unable to save podcast submission")
-
-    return submission
 
 
 def _pick_latest_existing_path(*paths):
@@ -349,8 +152,8 @@ def api_podcasts():
         return jsonify({"options": PODCAST_OPTIONS})
 
     try:
-        submission = _validate_podcast_payload(request.get_json(silent=True))
-        _upsert_podcast_submission(submission)
+        submission = validate_payload(request.get_json(silent=True))
+        upsert_submission(submission)
         return jsonify({"ok": True, "submission": submission}), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -495,7 +298,7 @@ def _is_admin():
 def api_podcasts_export():
     if not _is_admin():
         return jsonify({"error": "Unauthorized"}), 403
-    return jsonify(_load_podcast_submissions())
+    return jsonify(load_submissions())
 
 
 @app.route("/api/pairs", methods=["POST"])
