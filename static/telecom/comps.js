@@ -12,6 +12,7 @@ const COMPS_SHARE_OPS = ["Vivo", "TIM", "Claro", "Others"];
 const ISP_COMPANIES = ["Brisanet", "Unifique", "Desktop", "Vero"];
 const BRAZIL_FINANCIAL_COMPANIES = new Set(["Vivo", "TIM", "Claro", "Desktop", "Brisanet", "Unifique", "Vero"]);
 const ISP_START_PERIOD = "1Q21";
+const ISP_MAX_QUARTER_PERIOD = "1Q26";
 const DEFAULT_QUARTER_START = "1Q24";
 const OVERVIEW_DEFAULT_START = "1Q22";
 const DEFAULT_YEAR_START = "2022";
@@ -585,7 +586,10 @@ function renderISPValuationTable() {
 
 function populateISPRangeSelects() {
     const section = findSection("Net Revenue", "Net Revenue");
-    const periods = section ? (compsPeriodMode === "year" ? annualPeriodsFrom(section.periods) : section.periods) : [];
+    const rawPeriods = section ? (compsPeriodMode === "year" ? annualPeriodsFrom(section.periods) : section.periods) : [];
+    const periods = compsPeriodMode === "year"
+        ? rawPeriods
+        : rawPeriods.filter(period => quarterSortKey(period) <= quarterSortKey(ISP_MAX_QUARTER_PERIOD));
     fillRangeSelect("comps-isp-from-select", "comps-isp-to-select", periods, 24, ISP_START_PERIOD);
 }
 
@@ -617,7 +621,10 @@ function renderISPOverview() {
 
 function getISPSlice(section) {
     const fromValue = document.getElementById("comps-isp-from-select").value;
-    const toValue = document.getElementById("comps-isp-to-select").value;
+    const selectedToValue = document.getElementById("comps-isp-to-select").value;
+    const toValue = compsPeriodMode === "year"
+        ? selectedToValue
+        : (quarterSortKey(selectedToValue) > quarterSortKey(ISP_MAX_QUARTER_PERIOD) ? ISP_MAX_QUARTER_PERIOD : selectedToValue);
     const slice = getSliceForValues(section.periods, fromValue, toValue);
     if (compsPeriodMode !== "year") {
         const minStart = section.periods.indexOf(ISP_START_PERIOD);
@@ -906,11 +913,11 @@ function getFinancialCompanies() {
 }
 
 function renderTelcosOverview() {
-    renderTelcosOverviewCharts("all", getFinancialCompanies());
+    renderTelcosOverviewCharts("all", getOverviewCompanies());
 }
 
 function renderTelcosOverviewTables() {
-    const companies = getFinancialCompanies();
+    const companies = getOverviewCompanies();
     const specs = [
         ["overview-net-revenue-growth-table", "Net Revenue", "Net Revenue", "Net Revenue Growth", "growth"],
         ["overview-ebitda-growth-table", "EBITDA", "EBITDA", "EBITDA Growth", "growth"],
@@ -922,6 +929,29 @@ function renderTelcosOverviewTables() {
         const section = overviewMetricSection(sheetName, baseTitle, title, formatMetric);
         renderOverviewHistoryTable(tableId, section, companies, formatMetric);
     });
+}
+
+function getOverviewCompanies() {
+    const specs = [
+        ["Net Revenue", "Net Revenue", "Net Revenue Growth", "growth"],
+        ["EBITDA", "EBITDA", "EBITDA Growth", "growth"],
+        ["Net Income", "Net Income", "Net Income growth", "growth"],
+        ["Capex", null, "Capex-to-Sales", "margin"],
+        ["OpFCF", null, "OpFCF Margin", "margin"],
+    ];
+    return getFinancialCompanies().filter(company => specs.some(([sheetName, baseTitle, title, formatMetric]) => {
+        const section = overviewMetricSection(sheetName, baseTitle, title, formatMetric);
+        return overviewCompanyHasData(section, company);
+    }));
+}
+
+function overviewCompanyHasData(section, company) {
+    if (!section) return false;
+    const serie = section.series.find(item => item.company === company);
+    if (!serie) return false;
+    const periods = overviewHistoryPeriods(section);
+    const valuesByPeriod = new Map(section.periods.map((period, idx) => [period, serie.values[idx]]));
+    return periods.some(period => typeof valuesByPeriod.get(period) === "number");
 }
 
 function renderOverviewHistoryTable(tableId, section, companies, formatMetric) {
@@ -979,7 +1009,7 @@ function renderTelcosOverviewTable() {
     metrics.forEach(([label]) => header.appendChild(th(label)));
     thead.appendChild(header);
 
-    getFinancialCompanies().forEach(company => {
+    getOverviewCompanies().forEach(company => {
         const tr = document.createElement("tr");
         tr.appendChild(td(companyDisplayName(company)));
         let rowPeriod = "";
