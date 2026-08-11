@@ -119,11 +119,10 @@ async function initComps() {
     });
 
     renderValuationTable();
-    renderAllFinancialViews();
     populateISPRangeSelects();
-    renderISPOverview();
     populateOverviewRangeSelects();
-    renderTelcosOverviewTables();
+    renderAllFinancialViews();
+    renderISPOverview();
     if (document.getElementById("comps-bb-share-chart")) await renderAnatelCharts();
 }
 
