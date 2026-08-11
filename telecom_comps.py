@@ -55,7 +55,7 @@ COMPANY_OPERATOR_MAP = {
 
 _CACHE: dict[str, Any] = {"path": None, "mtime": None, "payload": None}
 CACHE_FILE = DATA_DIR / "telco_comps_cache.json"
-CACHE_VERSION = 13
+CACHE_VERSION = 14
 
 
 def invalidate_telco_comps_cache(remove_disk: bool = True) -> None:
@@ -80,6 +80,9 @@ def _clean_value(value: Any) -> Any:
         text = value.strip()
         if text in {"", "#N/A", "#N/A N/A", "#VALUE!", "#NAME?"}:
             return None
+        if text.endswith("%"):
+            number = _to_number(text[:-1])
+            return number / 100 if number is not None else text
         return text
     return value
 
