@@ -633,15 +633,22 @@
         ensureAnatelSubpageLoaded("overview");
         // Main tab switching
         document.querySelectorAll(".main-tab").forEach(tab => {
-            tab.addEventListener("click", () => {
+            tab.addEventListener("click", async () => {
                 document.querySelectorAll(".main-tab").forEach(t => t.classList.remove("active"));
                 document.querySelectorAll(".main-content").forEach(s => s.classList.remove("active"));
                 tab.classList.add("active");
                 const target = tab.dataset.main;
                 document.getElementById(target + "-main").classList.add("active");
-                if (target === "comps" && !window._compsLoaded) {
-                    initComps();
-                    window._compsLoaded = true;
+                if (target === "comps" && !window._compsLoaded && !window._compsLoading) {
+                    window._compsLoading = true;
+                    try {
+                        await initComps();
+                        window._compsLoaded = true;
+                    } catch (error) {
+                        console.error("Failed to load Comps", error);
+                    } finally {
+                        window._compsLoading = false;
+                    }
                 }
                 if (target === "anatel") {
                     ensureAnatelSubpageLoaded(document.querySelector(".anatel-tab.active").dataset.anatel);

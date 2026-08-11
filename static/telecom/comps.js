@@ -8,6 +8,7 @@ let compsPeriodMode = "quarter";
 
 const COMPS_OPS = ["Vivo", "TIM", "Claro"];
 const BRAZIL_TELCO_FINANCIAL_OPS = ["Vivo", "TIM", "Claro"];
+const TELCOS_OVERVIEW_ACTIVE_COMPANIES = new Set(["Vivo", "Claro", "TIM", "AMX"]);
 const COMPS_SHARE_OPS = ["Vivo", "TIM", "Claro", "Others"];
 const ISP_COMPANIES = ["Brisanet", "Unifique", "Desktop", "Vero"];
 const BRAZIL_FINANCIAL_COMPANIES = new Set(["Vivo", "TIM", "Claro", "Desktop", "Brisanet", "Unifique", "Vero"]);
@@ -912,11 +913,11 @@ function getFinancialCompanies() {
 }
 
 function renderTelcosOverview() {
-    renderTelcosOverviewCharts("all", getOverviewCompanies());
+    renderTelcosOverviewTables();
 }
 
 function renderTelcosOverviewTables() {
-    const companies = getOverviewCompanies();
+    const companies = getOverviewTableCompanies();
     const specs = [
         ["overview-net-revenue-growth-table", "Net Revenue", "Net Revenue", "Net Revenue Growth", "growth"],
         ["overview-ebitda-growth-table", "EBITDA", "EBITDA", "EBITDA Growth", "growth"],
@@ -930,27 +931,8 @@ function renderTelcosOverviewTables() {
     });
 }
 
-function getOverviewCompanies() {
-    const specs = [
-        ["Net Revenue", "Net Revenue", "Net Revenue Growth", "growth"],
-        ["EBITDA", "EBITDA", "EBITDA Growth", "growth"],
-        ["Net Income", "Net Income", "Net Income growth", "growth"],
-        ["Capex", null, "Capex-to-Sales", "margin"],
-        ["OpFCF", null, "OpFCF Margin", "margin"],
-    ];
-    return getFinancialCompanies().filter(company => specs.some(([sheetName, baseTitle, title, formatMetric]) => {
-        const section = overviewMetricSection(sheetName, baseTitle, title, formatMetric);
-        return overviewCompanyHasData(section, company);
-    }));
-}
-
-function overviewCompanyHasData(section, company) {
-    if (!section) return false;
-    const serie = section.series.find(item => item.company === company);
-    if (!serie) return false;
-    const periods = overviewHistoryPeriods(section);
-    const valuesByPeriod = new Map(section.periods.map((period, idx) => [period, serie.values[idx]]));
-    return periods.some(period => typeof valuesByPeriod.get(period) === "number");
+function getOverviewTableCompanies() {
+    return getFinancialCompanies();
 }
 
 function renderOverviewHistoryTable(tableId, section, companies, formatMetric) {
@@ -970,10 +952,9 @@ function renderOverviewHistoryTable(tableId, section, companies, formatMetric) {
 
     companies.forEach(company => {
         const serie = section.series.find(item => item.company === company);
-        if (!serie) return;
-        const valuesByPeriod = new Map(section.periods.map((period, idx) => [period, serie.values[idx]]));
-        const rowValues = periods.map(period => valuesByPeriod.get(period));
-        if (!rowValues.some(value => typeof value === "number")) return;
+        const valuesByPeriod = new Map(section.periods.map((period, idx) => [period, serie?.values[idx]]));
+        const rowValues = periods.map(period => overviewDisplayValue(company, valuesByPeriod.get(period)));
+        if (!TELCOS_OVERVIEW_ACTIVE_COMPANIES.has(company) && !serie) return;
         const tr = document.createElement("tr");
         tr.appendChild(td(`${companyDisplayName(company)} (${companyCurrency({ financialCompany: company })})`));
         rowValues.forEach(value => tr.appendChild(valueTd(value, formatMetric)));
@@ -1008,7 +989,7 @@ function renderTelcosOverviewTable() {
     metrics.forEach(([label]) => header.appendChild(th(label)));
     thead.appendChild(header);
 
-    getOverviewCompanies().forEach(company => {
+    getOverviewTableCompanies().forEach(company => {
         const tr = document.createElement("tr");
         tr.appendChild(td(companyDisplayName(company)));
         let rowPeriod = "";
@@ -1033,6 +1014,7 @@ function overviewMetricSection(sheetName, baseTitle, title, formatMetric) {
 }
 
 function latestSelectedValue(section, company) {
+    if (!TELCOS_OVERVIEW_ACTIVE_COMPANIES.has(company)) return { value: null, period: null };
     if (!section) return { value: null, period: null };
     const serie = section.series.find(item => item.company === company);
     if (!serie) return { value: null, period: null };
@@ -1044,6 +1026,10 @@ function latestSelectedValue(section, company) {
         if (typeof value === "number") return { value, period: section.periods[idx] };
     }
     return { value: null, period: null };
+}
+
+function overviewDisplayValue(company, value) {
+    return TELCOS_OVERVIEW_ACTIVE_COMPANIES.has(company) ? value : null;
 }
 
 function renderTelcosOverviewCharts(prefix, companies) {
