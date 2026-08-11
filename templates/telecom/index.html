@@ -639,7 +639,7 @@
                 tab.classList.add("active");
                 const target = tab.dataset.main;
                 document.getElementById(target + "-main").classList.add("active");
-                if (target === "comps" && !window._compsLoaded && !window._compsLoading) {
+                if ((target === "comps" || target === "operating") && !window._compsLoaded && !window._compsLoading) {
                     window._compsLoading = true;
                     try {
                         await initComps();
@@ -649,6 +649,9 @@
                     } finally {
                         window._compsLoading = false;
                     }
+                }
+                if (target === "operating" && window._compsLoaded && window.resizeVisibleCompsCharts) {
+                    window.resizeVisibleCompsCharts();
                 }
                 if (target === "anatel") {
                     ensureAnatelSubpageLoaded(document.querySelector(".anatel-tab.active").dataset.anatel);

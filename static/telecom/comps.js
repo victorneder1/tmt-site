@@ -330,7 +330,20 @@ function showFinancialView(activeView) {
     };
     Object.values(sectionByView).forEach(id => document.getElementById(id).style.display = "none");
     document.getElementById(sectionByView[activeView]).style.display = "block";
+    resizeVisibleCompsCharts();
 }
+
+function resizeVisibleCompsCharts() {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            Object.values(compsCharts).forEach(chart => {
+                if (chart && chart.canvas && chart.canvas.offsetParent !== null) chart.resize();
+            });
+        });
+    });
+}
+
+window.resizeVisibleCompsCharts = resizeVisibleCompsCharts;
 
 function getCompanyOperator(company) {
     if (company === "Telefonica Brasil" || company === "Vivo") return "Vivo";
