@@ -299,7 +299,9 @@ def _is_admin():
 def api_podcasts_export():
     if not _is_admin():
         return jsonify({"error": "Unauthorized"}), 403
-    return jsonify(load_submissions())
+    submissions = load_submissions()
+    submissions.sort(key=lambda item: str(item.get("updated_at", "")), reverse=True)
+    return jsonify(submissions)
 
 
 @app.route("/api/pairs", methods=["POST"])
