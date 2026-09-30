@@ -39,6 +39,11 @@ def _set_cached_price(ticker, price):
 YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
 YF_HEADERS = {"User-Agent": "Mozilla/5.0"}
 STOCKANALYSIS_HISTORY_URL = "https://stockanalysis.com/api/symbol/s/{ticker}/history"
+# Cloudflare challenges StockAnalysis requests carrying a bare "Mozilla/5.0" UA (HTTP 403)
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/128.0 Safari/537.36"
+)
 
 
 def get_current_price(ticker):
@@ -118,7 +123,7 @@ def get_historical_prices_stockanalysis(ticker, from_iso, to_iso):
             STOCKANALYSIS_HISTORY_URL.format(ticker=ticker.upper()),
             params={"range": "Max", "period": "Daily"},
             headers={
-                "User-Agent": "Mozilla/5.0",
+                "User-Agent": BROWSER_UA,
                 "Referer": f"https://stockanalysis.com/stocks/{ticker.lower()}/history/",
             },
             timeout=10,
@@ -617,6 +622,15 @@ def get_pair_history(pair_id, from_iso, to_iso):
 
     if not history:
         return _build_closed_pair_history_fallback(pair, from_d, to_d)
+
+    # Weekend/holiday inceptions use the prior close as entry, so the first trading day
+    # is already off 0% — anchor the chart at the entry prices on the inception date.
+    if inception_d and from_d == inception_d and history[0]["timestamp"][:10] > inception_d:
+        history.insert(0, {
+            "pair_id": pair_id,
+            "performance": 0.0,
+            "timestamp": f"{inception_d}T00:00:00.000Z",
+        })
 
     return history
 

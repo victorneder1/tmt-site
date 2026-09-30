@@ -129,10 +129,16 @@ function renderPairCard(pair) {
     return card;
 }
 
+// History timestamps are UTC midnight, so read them in UTC (local time in Brazil shifts them a day back)
 // Format date as "mon-yy" (e.g., "jan-26")
 const MONTH_ABBR = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 function fmtDateMonYY(dt) {
-    return MONTH_ABBR[dt.getMonth()] + "-" + String(dt.getFullYear()).slice(2);
+    return MONTH_ABBR[dt.getUTCMonth()] + "-" + String(dt.getUTCFullYear()).slice(2);
+}
+
+// Format date as "Jun 16, 2025"
+function fmtTooltipDate(dt) {
+    return dt.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 // ── Load chart data (always since inception) ─────────────────────────────
@@ -190,8 +196,7 @@ async function loadChart(pairId, canvasId) {
                             title: (items) => {
                                 if (!items.length) return "";
                                 const idx = items[0].dataIndex;
-                                const dt = new Date(data[idx].timestamp);
-                                return dt.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+                                return fmtTooltipDate(new Date(data[idx].timestamp));
                             },
                             label: ctx => `Performance: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%`,
                         },
