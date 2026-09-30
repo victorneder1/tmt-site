@@ -3,5 +3,5 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "bash start.sh"
-healthcheckPath = "/"
+healthcheckPath = "/telecom/"
 restartPolicyType = "on_failure"
