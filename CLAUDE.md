@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Global AIM** — Flask web app for financial screening data visualization (Visible Alpha comparables) and trading pair performance tracking (Yahoo Finance). Deployed on Railway at `https://web-production-9e57a.up.railway.app`.
 
+**Parked behind a redirect (since 2026-10-13):** the Railway service `btgtmt` has `REDIRECT_URL=https://www.btgpactual.com/research/dashboards`, so `start.sh` serves only `redirect_app.py`: btgtmt.com and www (every path) get a temporary 302 there, and Railway's healthcheck (Host `healthcheck.railway.app`) gets a 200. The full app, the CVM/SEC monitors and their Teams/e-mail alerts do not run, and uploads get redirected. To bring the site back: `railway variable delete REDIRECT_URL -s btgtmt`; the volume and the other variables were left as they were. Tag `full-site-2026-10-13` marks the last full version served. If the `chore/reorganize-layout` branch (start script in `ops/`) is merged, carry this redirect branch of `start.sh` into `ops/start.sh`.
+
 ## Commands
 
 ```bash
